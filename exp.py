@@ -33,6 +33,8 @@ import open3d.visualization.rendering as rendering
 
 # - converting from a window point + OpenGL depth to world coordinate
 
+g_i = 0
+
 class ExampleApp:
 
 
@@ -53,6 +55,7 @@ class ExampleApp:
         # so we need to manually layout the window's children.
 
         self.window.set_on_layout(self._on_layout)
+        # self.window.set_on_resize(self._on_window_resize)
 
         self.widget3d = gui.SceneWidget()
 
@@ -63,6 +66,36 @@ class ExampleApp:
         self.info.visible = False
 
         self.window.add_child(self.info)
+
+
+        # Create a vertical grid layout for the buttons
+        num_of_columns = 3
+        spacing_betn_items = 10
+        # margins = gui.Margins(10, 10, 10, 10)
+        self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items)  # 1 column
+        # self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items, margins)  # 1 column
+        print(self.button_layout.preferred_width)
+        self.button_layout.background_color = gui.Color(0.5, 0.5, 0.5, 0.6)
+
+        button_layout_width = 200  # Adjust as needed
+        # print(self.window.size)
+        # print(dir(self.window.size))
+        button_layout_height = self.window.size.height
+        button_layout_x = self.window.size.width - button_layout_width
+        button_layout_y = 0  # Top of the window
+        self.button_layout.frame = gui.Rect(button_layout_x, button_layout_y, button_layout_width, button_layout_height)
+        
+
+        # Create the buttons and add them to the layout
+        # button1 = gui.Button("Button 1")
+        # button2 = gui.Button("Button 2")
+        # button3 = gui.Button("Button 3")
+        # self.button_layout.add_child(button1)
+        # self.button_layout.add_child(button2)
+        # self.button_layout.add_child(button3)
+
+        # Add the layout to the window
+        self.window.add_child(self.button_layout)
 
 
         self.widget3d.scene = rendering.Open3DScene(self.window.renderer)
@@ -89,13 +122,22 @@ class ExampleApp:
 
         self.widget3d.setup_camera(60, bounds, center)
 
-        self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
+        # self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
+        # self.widget3d.look_at(  [1, 1, 1],  # eye (view point)
+        #                         [0, 0, 0],  # center (focal point)
+        #                         [4, 4, 4])  # Up direction
 
 
-        self.widget3d.set_on_mouse(self._on_mouse_widget3d)
+        # self.widget3d.set_on_mouse(self._on_mouse_widget3d)
 
 
     def _on_layout(self, layout_context):
+        global g_i
+        g_i += 1
+        print("---------------------------------------------------------")
+        print("Layout Changed! - ", g_i)
+        self._on_window_resize(self.window.size.width, self.window.size.height)
+        print("---------------------------------------------------------")
 
         r = self.window.content_rect
 
@@ -111,85 +153,92 @@ class ExampleApp:
 
                                    pref.height)
 
-
-    def _on_mouse_widget3d(self, event):
-
-        # We could override BUTTON_DOWN without a modifier, but that would
-
-        # interfere with manipulating the scene.
-
-        if event.type == gui.MouseEvent.Type.BUTTON_DOWN and event.is_modifier_down(
-
-                gui.KeyModifier.CTRL):
+    def _on_window_resize(self, width, height):
+        button_layout_width = 200  # Adjust as needed
+        button_layout_height = height
+        button_layout_x = width - button_layout_width
+        button_layout_y = 0  # Top of the window
+        self.button_layout.frame = gui.Rect(button_layout_x, button_layout_y, button_layout_width, button_layout_height)
 
 
-            def depth_callback(depth_image):
+    # def _on_mouse_widget3d(self, event):
 
-                # Coordinates are expressed in absolute coordinates of the
+    #     # We could override BUTTON_DOWN without a modifier, but that would
 
-                # window, but to dereference the image correctly we need them
+    #     # interfere with manipulating the scene.
 
-                # relative to the origin of the widget. Note that even if the
+    #     if event.type == gui.MouseEvent.Type.BUTTON_DOWN and event.is_modifier_down(
 
-                # scene widget is the only thing in the window, if a menubar
-
-                # exists it also takes up space in the window (except on macOS).
-
-                x = event.x - self.widget3d.frame.x
-
-                y = event.y - self.widget3d.frame.y
-
-                # Note that np.asarray() reverses the axes.
-
-                depth = np.asarray(depth_image)[y, x]
+    #             gui.KeyModifier.CTRL):
 
 
-                if depth == 1.0:  # clicked on nothing (i.e. the far plane)
+    #         def depth_callback(depth_image):
 
-                    text = ""
+    #             # Coordinates are expressed in absolute coordinates of the
 
-                else:
+    #             # window, but to dereference the image correctly we need them
 
-                    world = self.widget3d.scene.camera.unproject(
+    #             # relative to the origin of the widget. Note that even if the
 
-                        x, y, depth, self.widget3d.frame.width,
+    #             # scene widget is the only thing in the window, if a menubar
 
-                        self.widget3d.frame.height)
+    #             # exists it also takes up space in the window (except on macOS).
 
-                    text = "({:.3f}, {:.3f}, {:.3f})".format(
+    #             x = event.x - self.widget3d.frame.x
 
-                        world[0], world[1], world[2])
+    #             y = event.y - self.widget3d.frame.y
 
+    #             # Note that np.asarray() reverses the axes.
 
-                # This is not called on the main thread, so we need to
-
-                # post to the main thread to safely access UI items.
-
-                def update_label():
-
-                    self.info.text = text
-
-                    self.info.visible = (text != "")
-
-                    # We are sizing the info label to be exactly the right size,
-
-                    # so since the text likely changed width, we need to
-
-                    # re-layout to set the new frame.
-
-                    self.window.set_needs_layout()
+    #             depth = np.asarray(depth_image)[y, x]
 
 
-                gui.Application.instance.post_to_main_thread(
+    #             if depth == 1.0:  # clicked on nothing (i.e. the far plane)
 
-                    self.window, update_label)
+    #                 text = ""
+
+    #             else:
+
+    #                 world = self.widget3d.scene.camera.unproject(
+
+    #                     x, y, depth, self.widget3d.frame.width,
+
+    #                     self.widget3d.frame.height)
+
+    #                 text = "({:.3f}, {:.3f}, {:.3f})".format(
+
+    #                     world[0], world[1], world[2])
 
 
-            self.widget3d.scene.scene.render_to_depth_image(depth_callback)
+    #             # This is not called on the main thread, so we need to
 
-            return gui.Widget.EventCallbackResult.HANDLED
+    #             # post to the main thread to safely access UI items.
 
-        return gui.Widget.EventCallbackResult.IGNORED
+    #             def update_label():
+
+    #                 self.info.text = text
+
+    #                 self.info.visible = (text != "")
+
+    #                 # We are sizing the info label to be exactly the right size,
+
+    #                 # so since the text likely changed width, we need to
+
+    #                 # re-layout to set the new frame.
+
+    #                 self.window.set_needs_layout()
+
+
+    #             gui.Application.instance.post_to_main_thread(
+
+    #                 self.window, update_label)
+
+
+    #         self.widget3d.scene.scene.render_to_depth_image(depth_callback)
+
+    #         return gui.Widget.EventCallbackResult.HANDLED
+
+    #     return gui.Widget.EventCallbackResult.IGNORED
 
 
 
