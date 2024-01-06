@@ -115,6 +115,17 @@ class ExampleApp:
         self.button_layout.add_child(self.separator0)
 
 
+        # self.group_of_points_select_btn = gui.Button("Select Group of Points")
+        # self.group_of_points_select_btn.set_on_clicked(self._on_group_of_points_select_btn_clicked)
+        # self.button_layout.add_child(self.group_of_points_select_btn)
+
+
+        self.group_of_points_chk_box = gui.Checkbox("Select Group of Points")
+        self.group_of_points_chk_box.set_on_checked(self._on_group_of_points_chk_box_clicked)
+        self.button_layout.add_child(self.group_of_points_chk_box)
+
+        self.separator0 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator0)
         
 
         # Add the layout to the window
@@ -139,9 +150,9 @@ class ExampleApp:
         # self.widget3d.scene.add_geometry("Point Cloud", cloud, mat)
 
 
-        bounds = self.widget3d.scene.bounding_box
+        # bounds = self.widget3d.scene.bounding_box
 
-        center = bounds.get_center()
+        # center = bounds.get_center()
 
         # self.widget3d.setup_camera(60, bounds, center)
 
@@ -151,14 +162,19 @@ class ExampleApp:
                                 [4, 4, 4])  # Up
 
 
-        # self.widget3d.set_on_mouse(self._on_mouse_widget3d)
+        self.widget3d.set_on_mouse(self._on_mouse_widget3d)
 
     def _on_source_pcd_select_btn_clicked(self):
         print("Button clicked")
         print(self.source_pcd_text.text_value)
         self.mat.point_size = 3 * self.window.scaling
-        cloud = o3d.io.read_point_cloud(self.source_pcd_text.text_value)
-        self.widget3d.scene.add_geometry("source_cloud", cloud, self.mat)
+        self.cloud = o3d.io.read_point_cloud(self.source_pcd_text.text_value)
+
+        num_points = len(self.cloud.points)
+        colors = np.zeros((num_points, 3))
+        self.cloud.colors = o3d.utility.Vector3dVector(colors)
+
+        self.widget3d.scene.add_geometry("source_cloud", self.cloud, self.mat)
         # self.source_pcd_select_btn.enabled = False
 
     def _on_reset_btn_clicked(self):
@@ -166,6 +182,12 @@ class ExampleApp:
         self.widget3d.scene.remove_geometry("source_cloud")
         self.source_pcd_text.text_value = ""
         # self.source_pcd_select_btn.enabled = True
+
+    def _on_group_of_points_chk_box_clicked(self, checked):
+        print("Group of Points check box clicked")
+        print(checked)
+        print("___________________________________________")
+        # self.source_pcd_select_btn.enabled = False
 
     def _on_layout(self, layout_context):
         global g_i
@@ -196,6 +218,70 @@ class ExampleApp:
         button_layout_y = 0  # Top of the window
         self.button_layout.frame = gui.Rect(button_layout_x, button_layout_y, button_layout_width, button_layout_height)
 
+
+    def _on_mouse_widget3d(self, event):
+        if  event.is_modifier_down(gui.KeyModifier.CTRL):
+            if self.group_of_points_chk_box.checked:
+                print("Mouse Button Up Event Occured with btn checked")
+                print(event.x, event.y) # prints the mouse position. 0,0 is the top left corner of the window
+                def depth_callback(depth_image):
+                    x = event.x - self.widget3d.frame.x
+                    y = event.y - self.widget3d.frame.y
+                    # Note that np.asarray() reverses the axes.
+                    depth = np.asarray(depth_image)[y, x]
+                    if depth == 1.0:
+                        print("Clicked on nothing")
+                    else:
+                        print("Clicked on something")
+                        world = self.widget3d.scene.camera.unproject(
+                            x, y, depth, self.widget3d.frame.width,
+                                self.widget3d.frame.height)
+
+                        text = "({:.3f}, {:.3f}, {:.3f})".format(
+                            world[0], world[1], world[2])
+                        
+                        print("----------------------------------")
+                        print(text)
+                        print("----------------------------------")
+
+                        distances = np.sum((self.cloud.points - world) ** 2, axis=1)
+                        nearest_point_index = np.argmin(distances)
+                        print("Nearest Point Index: ", nearest_point_index)
+
+                        # print(self.cloud.colors)
+                        # print(np.asarray(self.cloud.colors)[nearest_point_index])
+                        print(self.cloud.colors[nearest_point_index])
+                        
+                        self.cloud.colors[nearest_point_index] = [1, 0, 0]  # Change to red
+
+                        # Redraw the point cloud
+                        print(type(self.cloud))
+                        # print(type(self.cloud.to_legacy()))
+                        print(self.widget3d.scene.scene.UPDATE_COLORS_FLAG)
+                        
+                        cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(self.cloud)
+                        # print(dir(cloud_tensor))
+                        # cloud_tensor.points = o3d.core.Tensor(self.cloud.points)
+                        # cloud_tensor.colors = o3d.core.Tensor(self.cloud.colors)
+
+                        # self.cloud = cloud_tensor
+
+                        if self.widget3d.scene.scene.has_geometry("source_cloud"):
+                            print("Updating the geometry")
+                            self.widget3d.scene.scene.remove_geometry("source_cloud")
+
+                        self.widget3d.scene.scene.add_geometry("source_cloud", cloud_tensor, self.mat)
+                        self.widget3d.force_redraw()
+                        # self.window.set_needs_layout()
+                
+                self.widget3d.scene.scene.render_to_depth_image(depth_callback)
+                return gui.Widget.EventCallbackResult.HANDLED
+            else:
+                print("Mouse Button Up Event Occured with btn UNchecked")
+            return gui.Widget.EventCallbackResult.IGNORED
+        else:
+            print("Ignored mouse event!")
+            return gui.Widget.EventCallbackResult.IGNORED
 
     # def _on_mouse_widget3d(self, event):
 
