@@ -38,7 +38,7 @@ g_i = 0
 class ExampleApp:
 
 
-    def __init__(self, cloud):
+    def __init__(self):
 
         # We will create a SceneWidget that fills the entire window, and then
 
@@ -69,11 +69,11 @@ class ExampleApp:
 
 
         # Create a vertical grid layout for the buttons
-        num_of_columns = 3
+        num_of_columns = 1
         spacing_betn_items = 10
-        # margins = gui.Margins(10, 10, 10, 10)
-        self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items)  # 1 column
-        # self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items, margins)  # 1 column
+        margins = gui.Margins(5, 20, 5, 10)
+        # self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items)  # 1 column
+        self.button_layout = gui.VGrid(num_of_columns, spacing_betn_items, margins)  # 1 column
         print(self.button_layout.preferred_width)
         self.button_layout.background_color = gui.Color(0.5, 0.5, 0.5, 0.6)
 
@@ -86,13 +86,26 @@ class ExampleApp:
         self.button_layout.frame = gui.Rect(button_layout_x, button_layout_y, button_layout_width, button_layout_height)
         
 
+        # Adding to the layout
+        self.source_pcd_text = gui.TextEdit()
+        self.button_layout.add_child(self.source_pcd_text)
+
         # Create the buttons and add them to the layout
-        # button1 = gui.Button("Button 1")
+        self.source_pcd_select_btn = gui.Button("Confirm")
+        self.source_pcd_select_btn.set_on_clicked(self._on_source_pcd_select_btn_clicked)
+        self.button_layout.add_child(self.source_pcd_select_btn)
+
+
+        self.reset_btn = gui.Button("Reset")
+        self.reset_btn.set_on_clicked(self._on_reset_btn_clicked)
+        self.button_layout.add_child(self.reset_btn)
+
         # button2 = gui.Button("Button 2")
         # button3 = gui.Button("Button 3")
         # self.button_layout.add_child(button1)
         # self.button_layout.add_child(button2)
         # self.button_layout.add_child(button3)
+        
 
         # Add the layout to the window
         self.window.add_child(self.button_layout)
@@ -101,9 +114,9 @@ class ExampleApp:
         self.widget3d.scene = rendering.Open3DScene(self.window.renderer)
 
 
-        mat = rendering.MaterialRecord()
+        self.mat = rendering.MaterialRecord()
 
-        mat.shader = "defaultUnlit"
+        self.mat.shader = "defaultUnlit"
 
         # Point size is in native pixels, but "pixel" means different things to
 
@@ -111,16 +124,16 @@ class ExampleApp:
 
         # factor.
 
-        mat.point_size = 3 * self.window.scaling
+        # mat.point_size = 3 * self.window.scaling
 
-        self.widget3d.scene.add_geometry("Point Cloud", cloud, mat)
+        # self.widget3d.scene.add_geometry("Point Cloud", cloud, mat)
 
 
         bounds = self.widget3d.scene.bounding_box
 
         center = bounds.get_center()
 
-        self.widget3d.setup_camera(60, bounds, center)
+        # self.widget3d.setup_camera(60, bounds, center)
 
         # self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
         # self.widget3d.look_at(  [1, 1, 1],  # eye (view point)
@@ -130,6 +143,19 @@ class ExampleApp:
 
         # self.widget3d.set_on_mouse(self._on_mouse_widget3d)
 
+    def _on_source_pcd_select_btn_clicked(self):
+        print("Button clicked")
+        print(self.source_pcd_text.text_value)
+        self.mat.point_size = 3 * self.window.scaling
+        cloud = o3d.io.read_point_cloud(self.source_pcd_text.text_value)
+        self.widget3d.scene.add_geometry("source_cloud", cloud, self.mat)
+        # self.source_pcd_select_btn.enabled = False
+
+    def _on_reset_btn_clicked(self):
+        print("Reset Button clicked")
+        self.widget3d.scene.remove_geometry("source_cloud")
+        self.source_pcd_text.text_value = ""
+        # self.source_pcd_select_btn.enabled = True
 
     def _on_layout(self, layout_context):
         global g_i
@@ -259,7 +285,7 @@ def main():
 
     cloud = o3d.io.read_point_cloud("only_road_cloud.ply")
 
-    ex = ExampleApp(cloud)
+    ex = ExampleApp()
 
 
     app.run()
