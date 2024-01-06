@@ -90,21 +90,31 @@ class ExampleApp:
         self.source_pcd_text = gui.TextEdit()
         self.button_layout.add_child(self.source_pcd_text)
 
+        self.top_horizontal_grid = gui.Horiz(spacing=2)
+        # self.top_horizontal_grid.margins = gui.Margins(2, 2, 2, 2)
+
         # Create the buttons and add them to the layout
         self.source_pcd_select_btn = gui.Button("Confirm")
         self.source_pcd_select_btn.set_on_clicked(self._on_source_pcd_select_btn_clicked)
-        self.button_layout.add_child(self.source_pcd_select_btn)
+        self.top_horizontal_grid.add_child(self.source_pcd_select_btn)
+        # self.button_layout.add_child(self.source_pcd_select_btn)
 
 
         self.reset_btn = gui.Button("Reset")
         self.reset_btn.set_on_clicked(self._on_reset_btn_clicked)
-        self.button_layout.add_child(self.reset_btn)
+        
+        self.top_horizontal_grid.add_child(self.reset_btn)
+        # self.button_layout.add_child(self.reset_btn)
 
-        # button2 = gui.Button("Button 2")
-        # button3 = gui.Button("Button 3")
-        # self.button_layout.add_child(button1)
-        # self.button_layout.add_child(button2)
-        # self.button_layout.add_child(button3)
+
+        # self.top_horizontal_grid.add_stretch()
+        self.button_layout.add_child(self.top_horizontal_grid)
+
+
+        self.separator0 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator0)
+
+
         
 
         # Add the layout to the window
@@ -136,9 +146,9 @@ class ExampleApp:
         # self.widget3d.setup_camera(60, bounds, center)
 
         # self.widget3d.look_at(center, center - [0, 0, 3], [0, -1, 0])
-        # self.widget3d.look_at(  [1, 1, 1],  # eye (view point)
-        #                         [0, 0, 0],  # center (focal point)
-        #                         [4, 4, 4])  # Up direction
+        self.widget3d.look_at(  [0, 0, 0],  # center
+                                [0, 0, 50],  # eye
+                                [4, 4, 4])  # Up
 
 
         # self.widget3d.set_on_mouse(self._on_mouse_widget3d)
