@@ -124,9 +124,21 @@ class ExampleApp:
         self.group_of_points_chk_box.set_on_checked(self._on_group_of_points_chk_box_clicked)
         self.button_layout.add_child(self.group_of_points_chk_box)
 
-        self.separator0 = gui.Label("----------------------------------------")
-        self.button_layout.add_child(self.separator0)
+        self.separator1 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator1)
         
+
+        self.rect_group_of_points_chk_box = gui.Checkbox("Select RECT Group of Points")
+        self.rect_group_of_points_chk_box.set_on_checked(self._on_rect_group_of_points_chk_box_clicked)
+        self.button_layout.add_child(self.rect_group_of_points_chk_box)
+        self.separator2 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator2)
+
+        self.mouse_start_point = None
+        self.mouse_end_point = None
+
+
+
 
         # Add the layout to the window
         self.window.add_child(self.button_layout)
@@ -187,6 +199,47 @@ class ExampleApp:
         print("Group of Points check box clicked")
         print(checked)
         print("___________________________________________")
+        # self.source_pcd_select_btn.enabled = False
+    
+    def _on_rect_group_of_points_chk_box_clicked(self, checked):
+        print("RECT Group of Points check box clicked")
+        if checked:
+            print(checked)
+            print("___________________________________________")
+
+            # Convert the point cloud to a numpy array
+            points = np.asarray(self.cloud.points)
+            colors = np.asarray(self.cloud.colors)
+
+            # Extract the red points
+            red_points = points[(colors[:, 0] > 0.9) & (colors[:, 1] < 0.1) & (colors[:, 2] < 0.1)]
+
+            if len(red_points) == 0:
+                print("No red points found")
+                return
+
+            # Compute the 2D bounding box of the red points in the XY plane
+            min_xy = np.min(red_points[:, :2], axis=0)
+            max_xy = np.max(red_points[:, :2], axis=0)
+
+            # Select all points indices that fall within this bounding box
+            selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
+            
+            colors[selected_indices] = [1, 0, 0]  # Change to red
+
+            self.cloud.colors = o3d.utility.Vector3dVector(colors)
+
+            # Create a new point cloud with the selected points
+            # selected_cloud = o3d.geometry.PointCloud()
+            # selected_cloud.points = o3d.utility.Vector3dVector(selected_points)
+            # selected_cloud.colors = o3d.utility.Vector3dVector(colors[(points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])])
+
+            if self.widget3d.scene.scene.has_geometry("source_cloud"):
+                print("Updating the geometry")
+                self.widget3d.scene.scene.remove_geometry("source_cloud")
+
+            self.widget3d.scene.scene.add_geometry("source_cloud", self.cloud, self.mat)
+            self.widget3d.force_redraw()
         # self.source_pcd_select_btn.enabled = False
 
     def _on_layout(self, layout_context):
@@ -276,6 +329,10 @@ class ExampleApp:
                 
                 self.widget3d.scene.scene.render_to_depth_image(depth_callback)
                 return gui.Widget.EventCallbackResult.HANDLED
+            elif self.rect_group_of_points_chk_box.checked:
+                print("Mouse Button Up Event Occured with btn checked")
+                print(event.x, event.y)
+                self.mouse_start_point = [event.x, event.y]
             else:
                 print("Mouse Button Up Event Occured with btn UNchecked")
             return gui.Widget.EventCallbackResult.IGNORED
