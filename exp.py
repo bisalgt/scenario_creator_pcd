@@ -15,6 +15,8 @@ import numpy as np
 
 import open3d as o3d
 
+import matplotlib.pyplot as plt
+
 import open3d.visualization.gui as gui
 
 import open3d.visualization.rendering as rendering
@@ -88,6 +90,7 @@ class ExampleApp:
 
         # Adding to the layout
         self.source_pcd_text = gui.TextEdit()
+        self.source_pcd_text.text_value = "only_road_cloud.ply"
         self.button_layout.add_child(self.source_pcd_text)
 
         self.top_horizontal_grid = gui.Horiz(spacing=2)
@@ -134,10 +137,48 @@ class ExampleApp:
         self.separator2 = gui.Label("----------------------------------------")
         self.button_layout.add_child(self.separator2)
 
-        self.mouse_start_point = None
-        self.mouse_end_point = None
+        
+        ### IMP Selected indices used for selecting a part of point cloud for effective processing
+        self.selected_pcd_indices = None
 
 
+        # Step 3: Add Target Cloud
+        self.target_pcd_text = gui.TextEdit()
+        self.target_pcd_text.text_value = "only_person_cloud.ply"
+        self.button_layout.add_child(self.target_pcd_text)
+        
+
+        self.target_pcd_load_btn = gui.Button("Load Target Cloud")
+        self.target_pcd_load_btn.set_on_clicked(self._on_target_pcd_load_btn_clicked)
+        self.button_layout.add_child(self.target_pcd_load_btn)
+
+        self.separator3 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator3)
+
+
+        self.surface_reconstruct_btn = gui.Button("Reconstruct Surface")
+        self.surface_reconstruct_btn.set_on_clicked(self._on_surface_reconstruct_btn_clicked)
+        self.button_layout.add_child(self.surface_reconstruct_btn)
+
+
+        self.show_density_btn = gui.Button("Show Density")
+        self.show_density_btn.set_on_clicked(self._on_show_density_btn_clicked)
+        self.button_layout.add_child(self.show_density_btn)
+
+
+        self.filter_density_slider = gui.Slider(gui.Slider.DOUBLE)
+        self.filter_density_slider.set_limits(0, 1)
+        self.button_layout.add_child(self.filter_density_slider)
+
+        self.filter_density_btn = gui.Button("Filter Density")
+        self.filter_density_btn.set_on_clicked(self._on_filter_density_btn_clicked)
+        self.button_layout.add_child(self.filter_density_btn)
+
+
+
+
+        self.separator4 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator4)
 
 
         # Add the layout to the window
@@ -189,6 +230,80 @@ class ExampleApp:
         self.widget3d.scene.add_geometry("source_cloud", self.cloud, self.mat)
         # self.source_pcd_select_btn.enabled = False
 
+    def _on_target_pcd_load_btn_clicked(self):
+        ## TODO: Registration of the source and target point clouds
+        print("Taget button clicked")
+        self.target_cloud = o3d.io.read_point_cloud(self.target_pcd_text.text_value)
+        num_points = len(self.target_cloud.points)
+        colors = np.zeros((num_points, 3))
+        colors[:,1] = 1 # set all points to green
+        self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
+
+        self.merged_cloud = self.cloud + self.target_cloud
+
+        if self.widget3d.scene.scene.has_geometry("source_cloud"):
+                print("Updating the geometry")
+                self.widget3d.scene.scene.remove_geometry("source_cloud")
+
+        self.widget3d.scene.scene.add_geometry("source_cloud", self.merged_cloud, self.mat)
+        self.widget3d.force_redraw()
+
+        print("Done loading target cloud")
+
+
+    def _on_surface_reconstruct_btn_clicked(self):
+        print("Surface Reconstruction Button clicked")
+        search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=0.37, max_nn=6)
+        self.cloud.estimate_normals(search_param=search_param)
+
+        print('run Poisson surface reconstruction')
+        with o3d.utility.VerbosityContextManager(
+                o3d.utility.VerbosityLevel.Debug) as cm:
+            self.mesh, self.densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+                self.cloud, depth=9)
+        print(self.mesh)
+        self.mesh.compute_vertex_normals()
+        # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
+        self.mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
+
+        self.widget3d.scene.scene.add_geometry("mesh", self.mesh, self.mat)
+
+
+    def _on_show_density_btn_clicked(self):
+        print("Show Density Button clicked")
+
+        print('visualize densities')
+        self.densities = np.asarray(self.densities)
+        density_colors = plt.get_cmap('plasma')(
+            (self.densities - self.densities.min()) / (self.densities.max() - self.densities.min()))
+        density_colors = density_colors[:, :3]
+        density_mesh = o3d.geometry.TriangleMesh()
+        density_mesh.vertices = self.mesh.vertices
+        density_mesh.triangles = self.mesh.triangles
+        density_mesh.triangle_normals = self.mesh.triangle_normals
+        density_mesh.vertex_colors = o3d.utility.Vector3dVector(density_colors)
+        self.widget3d.scene.scene.add_geometry("original_density_mesh", density_mesh, self.mat)
+
+
+    def _on_filter_density_btn_clicked(self):
+        print("Filter Density Button clicked")
+        vertices_to_remove = self.densities < np.quantile(self.densities, self.filter_density_slider.double_value)
+        self.mesh.remove_vertices_by_mask(vertices_to_remove)
+        
+        print(self.mesh)
+
+        self.mesh.compute_vertex_normals()
+        # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
+        self.mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
+
+        self.widget3d.scene.scene.remove_geometry("original_density_mesh")
+        self.widget3d.scene.scene.add_geometry("filtered_density_mesh", self.mesh, self.mat)
+        self.widget3d.force_redraw()
+        print("Done filtering density")
+
+
+
+
     def _on_reset_btn_clicked(self):
         print("Reset Button clicked")
         self.widget3d.scene.remove_geometry("source_cloud")
@@ -224,7 +339,9 @@ class ExampleApp:
 
             # Select all points indices that fall within this bounding box
             selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
-            
+            self.selected_pcd_indices = selected_indices # used later for selection of a part of pcd for effective processing
+
+
             colors[selected_indices] = [1, 0, 0]  # Change to red
 
             self.cloud.colors = o3d.utility.Vector3dVector(colors)
