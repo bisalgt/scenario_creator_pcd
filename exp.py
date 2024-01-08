@@ -181,12 +181,28 @@ class ExampleApp:
         self.show_rays_btn.set_on_clicked(self._on_show_rays_btn_clicked)
         self.button_layout.add_child(self.show_rays_btn)
 
-        self.pcd_after_raycast_btn = gui.Button("Show Rays")
+        self.pcd_after_raycast_btn = gui.Button("RayCasted PCD")
         self.pcd_after_raycast_btn.set_on_clicked(self._on_pcd_after_raycast_btn_clicked)
         self.button_layout.add_child(self.pcd_after_raycast_btn)
 
         self.separator5 = gui.Label("----------------------------------------")
         self.button_layout.add_child(self.separator5)
+
+
+        self.shadowcasting_by_HPR_btn = gui.Button("Perform Shadowcasting")
+        self.shadowcasting_by_HPR_btn.set_on_clicked(self._on_shadowcasting_by_HPR_btn_clicked)
+        self.button_layout.add_child(self.shadowcasting_by_HPR_btn)
+
+        self.separator5 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator5)
+
+
+        self.final_save_btn = gui.Button("Save Final PCD")
+        self.final_save_btn.set_on_clicked(self._on_final_save_btn_clicked)
+        self.button_layout.add_child(self.final_save_btn)
+
+        self.separator6 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator6)
 
 
 
@@ -388,7 +404,34 @@ class ExampleApp:
         
 
 
+    def _on_shadowcasting_by_HPR_btn_clicked(self):
+        print("Shadowcasting by HPR Button clicked")
 
+        self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
+
+        # Hidden Point Removal Used for Shadowcasting
+        diameter = np.linalg.norm(
+            np.asarray(self.final_merged_cloud.get_max_bound()) - np.asarray(self.final_merged_cloud.get_min_bound()))
+        # o3d.visualization.draw_geometries([self.final_merged_cloud])
+
+        print("Define parameters used for hidden_point_removal")
+        camera = o3d.core.Tensor([0, 0, 0], o3d.core.float32)
+        radius = diameter * 300
+
+        print("Get all points that are visible from given view point")
+        self.final_merged_cloud = o3d.t.geometry.PointCloud.from_legacy(self.final_merged_cloud)
+        _, pt_map = self.final_merged_cloud.hidden_point_removal(camera, radius)
+        self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud.select_by_index(pt_map)
+
+        self.widget3d.scene.scene.remove_geometry("target_cloud")
+
+        self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
+
+
+    def _on_final_save_btn_clicked(self):
+        print("Final Save Button clicked")
+        o3d.io.write_point_cloud("final_merged_cloud_after_shadow_cast.ply", self.final_merged_cloud_after_shadow_cast.to_legacy())
+        print("Saved final_merged_cloud_after_shadow_cast.ply")
 
 
     def _on_reset_btn_clicked(self):
