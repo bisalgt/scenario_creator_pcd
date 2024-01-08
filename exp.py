@@ -90,7 +90,7 @@ class ExampleApp:
 
         # Adding to the layout
         self.source_pcd_text = gui.TextEdit()
-        self.source_pcd_text.text_value = "only_road_cloud.ply"
+        self.source_pcd_text.text_value = "only_person_cloud.ply"
         self.button_layout.add_child(self.source_pcd_text)
 
         self.top_horizontal_grid = gui.Horiz(spacing=2)
@@ -118,11 +118,6 @@ class ExampleApp:
         self.button_layout.add_child(self.separator0)
 
 
-        # self.group_of_points_select_btn = gui.Button("Select Group of Points")
-        # self.group_of_points_select_btn.set_on_clicked(self._on_group_of_points_select_btn_clicked)
-        # self.button_layout.add_child(self.group_of_points_select_btn)
-
-
         self.group_of_points_chk_box = gui.Checkbox("Select Group of Points")
         self.group_of_points_chk_box.set_on_checked(self._on_group_of_points_chk_box_clicked)
         self.button_layout.add_child(self.group_of_points_chk_box)
@@ -144,7 +139,7 @@ class ExampleApp:
 
         # Step 3: Add Target Cloud
         self.target_pcd_text = gui.TextEdit()
-        self.target_pcd_text.text_value = "only_person_cloud.ply"
+        self.target_pcd_text.text_value = "only_road_cloud.ply"
         self.button_layout.add_child(self.target_pcd_text)
         
 
@@ -179,6 +174,21 @@ class ExampleApp:
 
         self.separator4 = gui.Label("----------------------------------------")
         self.button_layout.add_child(self.separator4)
+
+
+
+        self.show_rays_btn = gui.Button("Show Rays")
+        self.show_rays_btn.set_on_clicked(self._on_show_rays_btn_clicked)
+        self.button_layout.add_child(self.show_rays_btn)
+
+        self.pcd_after_raycast_btn = gui.Button("Show Rays")
+        self.pcd_after_raycast_btn.set_on_clicked(self._on_pcd_after_raycast_btn_clicked)
+        self.button_layout.add_child(self.pcd_after_raycast_btn)
+
+        self.separator5 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator5)
+
+
 
 
         # Add the layout to the window
@@ -221,13 +231,13 @@ class ExampleApp:
         print("Button clicked")
         print(self.source_pcd_text.text_value)
         self.mat.point_size = 3 * self.window.scaling
-        self.cloud = o3d.io.read_point_cloud(self.source_pcd_text.text_value)
+        self.source_cloud = o3d.io.read_point_cloud(self.source_pcd_text.text_value)
 
-        num_points = len(self.cloud.points)
+        num_points = len(self.source_cloud.points)
         colors = np.zeros((num_points, 3))
-        self.cloud.colors = o3d.utility.Vector3dVector(colors)
+        self.source_cloud.colors = o3d.utility.Vector3dVector(colors)
 
-        self.widget3d.scene.add_geometry("source_cloud", self.cloud, self.mat)
+        self.widget3d.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
         # self.source_pcd_select_btn.enabled = False
 
     def _on_target_pcd_load_btn_clicked(self):
@@ -239,13 +249,13 @@ class ExampleApp:
         colors[:,1] = 1 # set all points to green
         self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
 
-        self.merged_cloud = self.cloud + self.target_cloud
+        # self.source_cloud = self.source_cloud + self.target_cloud
 
-        if self.widget3d.scene.scene.has_geometry("source_cloud"):
-                print("Updating the geometry")
-                self.widget3d.scene.scene.remove_geometry("source_cloud")
+        # if self.widget3d.scene.scene.has_geometry("source_cloud"):
+        #         print("Updating the geometry")
+        #         self.widget3d.scene.scene.remove_geometry("source_cloud")
 
-        self.widget3d.scene.scene.add_geometry("source_cloud", self.merged_cloud, self.mat)
+        self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
         self.widget3d.force_redraw()
 
         print("Done loading target cloud")
@@ -254,52 +264,129 @@ class ExampleApp:
     def _on_surface_reconstruct_btn_clicked(self):
         print("Surface Reconstruction Button clicked")
         search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=0.37, max_nn=6)
-        self.cloud.estimate_normals(search_param=search_param)
+        self.source_cloud.estimate_normals(search_param=search_param)
 
         print('run Poisson surface reconstruction')
         with o3d.utility.VerbosityContextManager(
                 o3d.utility.VerbosityLevel.Debug) as cm:
-            self.mesh, self.densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-                self.cloud, depth=9)
-        print(self.mesh)
-        self.mesh.compute_vertex_normals()
+            self.original_mesh, self.original_densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+                self.source_cloud, depth=9)
+        print(self.original_mesh)
+        self.original_mesh.compute_vertex_normals()
         # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
-        self.mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
+        self.original_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
 
-        self.widget3d.scene.scene.add_geometry("mesh", self.mesh, self.mat)
+        self.widget3d.scene.scene.add_geometry("original_mesh", self.original_mesh, self.mat)
 
 
     def _on_show_density_btn_clicked(self):
         print("Show Density Button clicked")
 
         print('visualize densities')
-        self.densities = np.asarray(self.densities)
+        self.original_densities = np.asarray(self.original_densities)
         density_colors = plt.get_cmap('plasma')(
-            (self.densities - self.densities.min()) / (self.densities.max() - self.densities.min()))
+            (self.original_densities - self.original_densities.min()) / (self.original_densities.max() - self.original_densities.min()))
         density_colors = density_colors[:, :3]
-        density_mesh = o3d.geometry.TriangleMesh()
-        density_mesh.vertices = self.mesh.vertices
-        density_mesh.triangles = self.mesh.triangles
-        density_mesh.triangle_normals = self.mesh.triangle_normals
-        density_mesh.vertex_colors = o3d.utility.Vector3dVector(density_colors)
-        self.widget3d.scene.scene.add_geometry("original_density_mesh", density_mesh, self.mat)
+        self.original_density_mesh = o3d.geometry.TriangleMesh()
+        self.original_density_mesh.vertices = self.original_mesh.vertices
+        self.original_density_mesh.triangles = self.original_mesh.triangles
+        self.original_density_mesh.triangle_normals = self.original_mesh.triangle_normals
+        self.original_density_mesh.vertex_colors = o3d.utility.Vector3dVector(density_colors)
+        self.widget3d.scene.scene.add_geometry("original_density_mesh", self.original_density_mesh, self.mat)
 
 
     def _on_filter_density_btn_clicked(self):
+        import copy
+        self.filtered_density_mesh = copy.deepcopy(self.original_mesh)
         print("Filter Density Button clicked")
-        vertices_to_remove = self.densities < np.quantile(self.densities, self.filter_density_slider.double_value)
-        self.mesh.remove_vertices_by_mask(vertices_to_remove)
+        vertices_to_remove = self.original_densities < np.quantile(self.original_densities, self.filter_density_slider.double_value)
+        self.filtered_density_mesh.remove_vertices_by_mask(vertices_to_remove)
         
-        print(self.mesh)
+        print(self.filtered_density_mesh)
 
-        self.mesh.compute_vertex_normals()
+        self.filtered_density_mesh.compute_vertex_normals()
         # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
-        self.mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
+        self.filtered_density_mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
 
-        self.widget3d.scene.scene.remove_geometry("original_density_mesh")
-        self.widget3d.scene.scene.add_geometry("filtered_density_mesh", self.mesh, self.mat)
+        # self.widget3d.scene.scene.remove_geometry("original_density_mesh")
+        self.widget3d.scene.scene.add_geometry("filtered_density_mesh", self.filtered_density_mesh, self.mat)
         self.widget3d.force_redraw()
         print("Done filtering density")
+
+
+    def _on_show_rays_btn_clicked(self):
+        print("Show Rays Button clicked")
+        # step 1: Create Rays with origin at the center of the point cloud and direction towards the points of selected indices
+        # step 2: Visualize the rays
+
+        if self.selected_pcd_indices is None:
+            print("No points Indices selected for Rays")
+            return
+
+        rays_direction = np.asarray(self.target_cloud.points)[self.selected_pcd_indices]
+        ray_origin = np.zeros((len(rays_direction), 3))
+
+        origin = np.array([[0, 0, 0]])
+
+        rays_direction_with_origin = np.concatenate((origin, rays_direction), axis=0)
+
+        print(rays_direction_with_origin[0])
+
+        
+        lines = [[0, i] for i in range(1, len(rays_direction_with_origin))]
+        
+        self.line_set = o3d.geometry.LineSet()
+        self.line_set.points = o3d.utility.Vector3dVector(rays_direction_with_origin)
+        self.line_set.lines = o3d.utility.Vector2iVector(lines)
+        self.line_set.colors = o3d.utility.Vector3dVector(np.array([[1, 0, 0] for i in range(len(lines))]))
+        self.widget3d.scene.scene.add_geometry("line_set", self.line_set, self.mat)
+
+
+
+    def _on_pcd_after_raycast_btn_clicked(self):
+        print("PCD After Raycast Button clicked")
+
+        rays_direction = np.asarray(self.target_cloud.points)[self.selected_pcd_indices]
+        ray_origin = np.zeros((len(rays_direction), 3))
+
+        rays_array = np.concatenate((ray_origin, rays_direction), axis=1)
+
+        print(rays_array[0])
+        print(rays_array.shape)
+
+        # if self.filtered_density_mesh is None:
+        #     print("No filtered density mesh")
+        #     return
+
+        # Create a Scene and add the triangle mesh
+        mesh_new = o3d.t.geometry.TriangleMesh.from_legacy(self.filtered_density_mesh)
+        scene = o3d.t.geometry.RaycastingScene()
+        scene.add_triangles(mesh_new)
+
+        # Creating Rays for casting using the rays array created earlier
+        rays = o3d.core.Tensor(rays_array,dtype=o3d.core.Dtype.Float32)
+        # Casting rays on the scene
+        ans = scene.cast_rays(rays)
+
+        triangle_ids = [i.numpy() for i in ans["primitive_ids"] if i != scene.INVALID_ID] # list of all the triangles through which rays intersected
+        triangle_indices = [i.numpy() for i in mesh_new.triangle.indices] # list of all the triangles in the mesh
+        vertex_list = [i.numpy() for i in mesh_new.vertex.positions]
+        all_intersected_points = np.zeros((len(triangle_ids), 3)) # Creating an empty array
+        for indx, triangle_id in enumerate(triangle_ids): # List of Triangles through which rays intersected
+            triangle_vertex = triangle_indices[triangle_id] # Gives the list of vertex
+            vertex0 = vertex_list[triangle_vertex[0]] # Gives the corresponding vertex value in x,y,z
+            vertex1 = vertex_list[triangle_vertex[1]] # Gives the corresponding vertex value in x,y,z
+            vertex2 = vertex_list[triangle_vertex[2]] # Gives the corresponding vertex value in x,y,z
+            all_intersected_points[indx] = [(vertex0[i] + vertex1[i] + vertex2[i])/3 for i in range(3)] # Computing the centroid for now
+        print(all_intersected_points.shape)
+
+        self.raycasted_source_cloud = o3d.geometry.PointCloud()
+        self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(all_intersected_points)
+        self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
+
+        self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
+        
+
 
 
 
@@ -316,15 +403,15 @@ class ExampleApp:
         print("___________________________________________")
         # self.source_pcd_select_btn.enabled = False
     
-    def _on_rect_group_of_points_chk_box_clicked(self, checked):
+    def _on_rect_group_of_points_chk_box_clicked(self, checked):  # Maybe later it could be dynamic for both clouds
         print("RECT Group of Points check box clicked")
         if checked:
             print(checked)
             print("___________________________________________")
 
             # Convert the point cloud to a numpy array
-            points = np.asarray(self.cloud.points)
-            colors = np.asarray(self.cloud.colors)
+            points = np.asarray(self.target_cloud.points)
+            colors = np.asarray(self.target_cloud.colors)
 
             # Extract the red points
             red_points = points[(colors[:, 0] > 0.9) & (colors[:, 1] < 0.1) & (colors[:, 2] < 0.1)]
@@ -344,18 +431,18 @@ class ExampleApp:
 
             colors[selected_indices] = [1, 0, 0]  # Change to red
 
-            self.cloud.colors = o3d.utility.Vector3dVector(colors)
+            self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
 
             # Create a new point cloud with the selected points
             # selected_cloud = o3d.geometry.PointCloud()
             # selected_cloud.points = o3d.utility.Vector3dVector(selected_points)
             # selected_cloud.colors = o3d.utility.Vector3dVector(colors[(points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])])
 
-            if self.widget3d.scene.scene.has_geometry("source_cloud"):
+            if self.widget3d.scene.scene.has_geometry("target_cloud"):
                 print("Updating the geometry")
-                self.widget3d.scene.scene.remove_geometry("source_cloud")
+                self.widget3d.scene.scene.remove_geometry("target_cloud")
 
-            self.widget3d.scene.scene.add_geometry("source_cloud", self.cloud, self.mat)
+            self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
             self.widget3d.force_redraw()
         # self.source_pcd_select_btn.enabled = False
 
@@ -414,33 +501,33 @@ class ExampleApp:
                         print(text)
                         print("----------------------------------")
 
-                        distances = np.sum((self.cloud.points - world) ** 2, axis=1)
+                        distances = np.sum((self.target_cloud.points - world) ** 2, axis=1)
                         nearest_point_index = np.argmin(distances)
                         print("Nearest Point Index: ", nearest_point_index)
 
                         # print(self.cloud.colors)
                         # print(np.asarray(self.cloud.colors)[nearest_point_index])
-                        print(self.cloud.colors[nearest_point_index])
+                        print(self.target_cloud.colors[nearest_point_index])
                         
-                        self.cloud.colors[nearest_point_index] = [1, 0, 0]  # Change to red
+                        self.target_cloud.colors[nearest_point_index] = [1, 0, 0]  # Change to red
 
                         # Redraw the point cloud
-                        print(type(self.cloud))
+                        # print(type(self.target_cloud))
                         # print(type(self.cloud.to_legacy()))
                         print(self.widget3d.scene.scene.UPDATE_COLORS_FLAG)
                         
-                        cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(self.cloud)
+                        cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(self.target_cloud)
                         # print(dir(cloud_tensor))
                         # cloud_tensor.points = o3d.core.Tensor(self.cloud.points)
                         # cloud_tensor.colors = o3d.core.Tensor(self.cloud.colors)
 
                         # self.cloud = cloud_tensor
 
-                        if self.widget3d.scene.scene.has_geometry("source_cloud"):
+                        if self.widget3d.scene.scene.has_geometry("target_cloud"):
                             print("Updating the geometry")
-                            self.widget3d.scene.scene.remove_geometry("source_cloud")
+                            self.widget3d.scene.scene.remove_geometry("target_cloud")
 
-                        self.widget3d.scene.scene.add_geometry("source_cloud", cloud_tensor, self.mat)
+                        self.widget3d.scene.scene.add_geometry("target_cloud", cloud_tensor, self.mat)
                         self.widget3d.force_redraw()
                         # self.window.set_needs_layout()
                 
@@ -550,10 +637,6 @@ def main():
     # If you use a triangle mesh you will probably want to set the material
 
     # shader to "defaultLit" instead of "defaultUnlit".
-
-    pcd_data = o3d.data.DemoICPPointClouds()
-
-    cloud = o3d.io.read_point_cloud("only_road_cloud.ply")
 
     ex = ExampleApp()
 
