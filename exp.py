@@ -9,7 +9,9 @@
 # SPDX-License-Identifier: MIT
 
 # ----------------------------------------------------------------------------
+import copy
 
+import math
 
 import numpy as np
 
@@ -151,6 +153,21 @@ class ExampleApp:
         self.button_layout.add_child(self.separator3)
 
 
+        self.calculate_z_distance_reference_btn = gui.Button("Calculate Z Distance")
+        self.calculate_z_distance_reference_btn.set_on_clicked(self._on_calculate_z_distance_reference_btn_clicked)
+        self.button_layout.add_child(self.calculate_z_distance_reference_btn)
+
+        self.reset_selected_indices_of_pcd_btn = gui.Button("Reset Selected Region")
+        self.reset_selected_indices_of_pcd_btn.set_on_clicked(self._on_reset_selected_indices_of_pcd_btn_clicked)
+        self.button_layout.add_child(self.reset_selected_indices_of_pcd_btn)
+
+        self.transform_source_pcd_btn = gui.Button("Transform Source Cloud")
+        self.transform_source_pcd_btn.set_on_clicked(self._on_transform_source_pcd_btn_clicked)
+        self.button_layout.add_child(self.transform_source_pcd_btn)
+
+        self.separator3 = gui.Label("----------------------------------------")
+        self.button_layout.add_child(self.separator3)
+
         self.surface_reconstruct_btn = gui.Button("Reconstruct Surface")
         self.surface_reconstruct_btn.set_on_clicked(self._on_surface_reconstruct_btn_clicked)
         self.button_layout.add_child(self.surface_reconstruct_btn)
@@ -275,6 +292,100 @@ class ExampleApp:
         self.widget3d.force_redraw()
 
         print("Done loading target cloud")
+
+    
+    def _on_calculate_z_distance_reference_btn_clicked(self):
+        print("Calculate Z distance reference btn clicked!")
+
+        # Initially the indices are selected to calculate a reference 
+        self.target_pcd_subset_reference_center = np.asarray(self.target_cloud.points)[self.selected_pcd_indices].mean(axis=0)
+        source_pcd_center = np.asarray(self.source_cloud.get_center())
+        self.z_distance_reference = abs(self.target_pcd_subset_reference_center[2] - source_pcd_center[2])
+
+
+        print("Z distance reference: ", self.z_distance_reference)
+        print("Target pcd subset reference center: ", self.target_pcd_subset_reference_center)
+        print("Source pcd center: ", source_pcd_center)
+
+
+    def _on_reset_selected_indices_of_pcd_btn_clicked(self):
+
+        print("Reset selected indices of pcd btn clicked!")
+        self.selected_pcd_indices = None
+        # Remove old target_cloud geometry
+        self.widget3d.scene.scene.remove_geometry("target_cloud")
+        # Reset the color of the target cloud to green
+        num_points = len(self.target_cloud.points)
+        colors = np.zeros((num_points, 3))
+        colors[:,1] = 1 # set all points to green
+        self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
+        # Add the target cloud again
+        self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
+
+
+    def _on_transform_source_pcd_btn_clicked(self):
+        print("Transform Source PCD Button clicked")
+        # Initially the indices are selected to calculate a reference 
+        target_pcd_subset_target_center = np.asarray(self.target_cloud.points)[self.selected_pcd_indices].mean(axis=0)
+        
+        # Translation part works fine
+        translation = target_pcd_subset_target_center - self.target_pcd_subset_reference_center
+        print("Translation: ", translation)
+        translation_matrix = np.identity(4)
+        translation_matrix[:3, 3] = translation
+        self.source_cloud_transformed  = copy.deepcopy(self.source_cloud).transform(translation_matrix)
+
+        # Needs to figure out rotation part
+        start_vector = self.target_pcd_subset_reference_center
+        end_vector = target_pcd_subset_target_center
+        # Calculate the cosine of the angle
+        cos_angle = np.dot(start_vector, end_vector) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
+        # Calculate the sine of the angle
+        sin_angle = np.linalg.norm(np.cross(start_vector, end_vector)) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
+        # Calculate the angle in radians
+        angle_rad = np.arctan2(sin_angle, cos_angle)
+
+        # Convert the angle to degrees
+        angle_deg = np.degrees(angle_rad)
+
+
+        print("Angle in degrees: ", angle_deg)
+        print("Angle in radians: ", angle_rad)
+
+
+        # TODO: Angle in radian shoud change the sign based on the rotation clockwise or anticlockwise
+
+        # Create the rotation matrix
+        rotation_matrix = np.array([
+            [np.cos(angle_rad), -np.sin(angle_rad), 0],
+            [np.sin(angle_rad), np.cos(angle_rad), 0],
+            [0, 0, 1]
+        ])
+
+
+        print("Rotation Matrix: ", rotation_matrix)
+        # Apply the rotation matrix to the source cloud
+
+        # angle_90_rad = math.radians(90)
+
+        # rotation_matrix = np.array([
+        #     [np.cos(angle_90_rad), -np.sin(angle_90_rad), 0],
+        #     [np.sin(angle_90_rad), np.cos(angle_90_rad), 0],
+        #     [0, 0, 1]
+
+
+        # ])
+
+        new_cloud_rotated = copy.deepcopy(self.source_cloud_transformed).rotate(rotation_matrix, center=np.asarray(self.source_cloud_transformed.get_center()))
+
+        # self.source_cloud_transformed.transform(rotation_matrix)
+
+        # Add the transformed source cloud on the scene
+
+        o3d.io.write_point_cloud("source_cloud_transformed.ply", self.source_cloud_transformed)
+        # self.widget3d.scene.scene.add_geometry("source_cloud_transformed", self.source_cloud_transformed, self.mat)
+        self.widget3d.scene.scene.add_geometry("source_cloud_transformed_rot", new_cloud_rotated, self.mat)
+
 
 
     def _on_surface_reconstruct_btn_clicked(self):
@@ -584,7 +695,7 @@ class ExampleApp:
                 print("Mouse Button Up Event Occured with btn UNchecked")
             return gui.Widget.EventCallbackResult.IGNORED
         else:
-            print("Ignored mouse event!")
+            # print("Ignored mouse event!")
             return gui.Widget.EventCallbackResult.IGNORED
 
     # def _on_mouse_widget3d(self, event):
