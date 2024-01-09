@@ -336,14 +336,23 @@ class ExampleApp:
         self.source_cloud_transformed  = copy.deepcopy(self.source_cloud).transform(translation_matrix)
 
         # Needs to figure out rotation part
-        start_vector = self.target_pcd_subset_reference_center
-        end_vector = target_pcd_subset_target_center
+        start_vector = np.array(self.source_cloud.get_center())
+        end_vector = np.array(self.source_cloud_transformed.get_center())
         # Calculate the cosine of the angle
         cos_angle = np.dot(start_vector, end_vector) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
         # Calculate the sine of the angle
         sin_angle = np.linalg.norm(np.cross(start_vector, end_vector)) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
         # Calculate the angle in radians
         angle_rad = np.arctan2(sin_angle, cos_angle)
+
+
+
+        # If the z-component of the cross product is negative, the angle should be negative
+        if np.cross(start_vector, end_vector)[2] < 0:
+            print("Negative angle")
+            angle_rad = -angle_rad
+        else:
+            print("Positive angle")
 
         # Convert the angle to degrees
         angle_deg = np.degrees(angle_rad)
