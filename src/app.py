@@ -33,6 +33,8 @@ class ScenarioCreatorApp:
         self.reconstructed_source_mesh_densities = None
         self.reconstructed_source_mesh_filtered_densities_mesh = None
         self.raycasted_source_cloud = None
+        self.final_merged_cloud = None
+        self.final_merged_cloud_after_shadow_casting = None
 
 
 
@@ -324,6 +326,42 @@ class ScenarioCreatorApp:
         # endregion 5
 
 
+
+        # region 6 : Shadow Casting
+        self.rgn6_shadow_casting_layout = gui.CollapsableVert("Shadow Casting", spacing_betn_items_in_region, margins_for_region)
+
+        self.rgn6_horiz_row_1_grid = gui.Horiz()
+        self.rgn6_horiz_row_1_grid.preferred_height = 2 * self.em
+        self.rgn6_radius_label = gui.Label("  Radius : ")
+        self.rgn6_radius_text = gui.TextEdit()
+        self.rgn6_radius_text.text_value = "300"
+        
+        self.rgn6_horiz_row_1_grid.add_stretch()
+        self.rgn6_horiz_row_1_grid.add_child(self.rgn6_radius_label)
+        self.rgn6_horiz_row_1_grid.add_child(self.rgn6_radius_text)
+        self.rgn6_horiz_row_1_grid.add_stretch()
+
+
+        self.rgn6_horiz_row_2_grid = gui.Horiz()
+        self.rgn6_horiz_row_2_grid.preferred_height = 2 * self.em
+
+        self.show_shadow_casting_btn = gui.Button(f"Show Shadow Casting")
+        self.show_shadow_casting_btn.toggleable = True
+        self.show_shadow_casting_btn.set_on_clicked(self._on_show_shadow_casting_btn_clicked)
+
+        self.rgn6_horiz_row_2_grid.add_stretch()
+        self.rgn6_horiz_row_2_grid.add_child(self.show_shadow_casting_btn)
+        self.rgn6_horiz_row_2_grid.add_stretch()
+
+
+        self.rgn6_shadow_casting_layout.add_child(self.rgn6_horiz_row_1_grid)
+        self.rgn6_shadow_casting_layout.add_child(self.rgn6_horiz_row_2_grid)
+
+
+        self.main_layout.add_child(self.rgn6_shadow_casting_layout)
+
+
+        # endregion 6
 
         # Add the layout to the window
         self.window.add_child(self.main_layout)
@@ -716,6 +754,44 @@ class ScenarioCreatorApp:
             self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
             self.raycasted_source_cloud = None
             print("Done removing raycasted source cloud")
+
+    @check_if_pcd_is_loaded
+    def _on_show_shadow_casting_btn_clicked(self):
+        print("Show Shadow Casting Button clicked")
+        if self.raycasted_source_cloud is None or self.target_cloud is None or self.raycasted_source_cloud is None:
+            self.show_shadow_casting_btn.is_on = False
+            self.show_shadow_casting_btn.text = "Show Shadow Casting"
+            print("No raycasted source cloud or target cloud")
+            return
+        if self.show_shadow_casting_btn.is_on:
+            self.show_shadow_casting_btn.text = "Remove Casted Shadow"
+            print("Show Shadow Casting Button is ON")
+            self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
+            # Hidden Point Removal Used for Shadowcasting
+            diameter = np.linalg.norm(
+                np.asarray(self.final_merged_cloud.get_max_bound()) - np.asarray(self.final_merged_cloud.get_min_bound()))
+            print("Define parameters used for hidden_point_removal")
+            camera = o3d.core.Tensor([0, 0, 0], o3d.core.float32)
+            radius = diameter * int(self.rgn6_radius_text.text_value)
+            print("Get all points that are visible from given view point")
+            self.final_merged_cloud = o3d.t.geometry.PointCloud.from_legacy(self.final_merged_cloud)
+            _, pt_map = self.final_merged_cloud.hidden_point_removal(camera, radius)
+            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud.select_by_index(pt_map)
+            self.widget3d.scene.scene.remove_geometry("target_cloud")
+            self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
+            # Need to make it more robust by testing if the geometry exists and Raycasting button state
+            self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
+        else:
+            self.show_shadow_casting_btn.text = "Show Shadow Casting"
+            print("Show Shadow Casting Button is OFF")
+            self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
+            self.final_merged_cloud_after_shadow_cast = None
+            self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
+            self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
+            print("Done removing casted shadow")
+
+
+    
 
 
     def _on_mouse_widget3d(self, event):
