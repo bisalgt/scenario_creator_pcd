@@ -25,10 +25,12 @@ class ScenarioCreatorApp:
         
         self.source_cloud = None
         self.target_cloud = None
-        self.source_cloud_transformed = None
         self.selected_pcd_indices = None
         self.centroid_of_reference_roi = None
         self.centroid_of_target_roi = None
+        self.source_cloud_transformed = None
+        self.reconstructed_source_mesh = None
+        self.reconstructed_source_mesh_densities = None
 
         
         
@@ -183,12 +185,12 @@ class ScenarioCreatorApp:
         self.rgn3_horiz_row_2_grid.preferred_height = 2 * self.em
         self.transform_source_pcd_to_target_roi = gui.Button(f"Transf. Source Cloud")
         self.transform_source_pcd_to_target_roi.set_on_clicked(self._on_transform_source_pcd_to_target_roi_clicked)
-        self.remove_transform_source_pcd_to_target_roi = gui.Button(f"RemoveTransformSrc")
-        self.remove_transform_source_pcd_to_target_roi.set_on_clicked(self._on_remove_transform_source_pcd_to_target_roi_clicked)
+        self.remove_transformed_source_pcd_to_target_roi = gui.Button(f"RemoveTransformSrc")
+        self.remove_transformed_source_pcd_to_target_roi.set_on_clicked(self._on_remove_transformed_source_pcd_to_target_roi_clicked)
         self.rgn3_horiz_row_2_grid.add_stretch()
         self.rgn3_horiz_row_2_grid.add_child(self.transform_source_pcd_to_target_roi)
         self.rgn3_horiz_row_2_grid.add_stretch()
-        self.rgn3_horiz_row_2_grid.add_child(self.remove_transform_source_pcd_to_target_roi)
+        self.rgn3_horiz_row_2_grid.add_child(self.remove_transformed_source_pcd_to_target_roi)
         self.rgn3_horiz_row_2_grid.add_stretch()
 
         self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_1_grid)
@@ -200,6 +202,80 @@ class ScenarioCreatorApp:
 
         # endregion 3
 
+
+        # region 4: Surface Reconstruction
+
+        self.rgn4_surface_reconstruct_layout = gui.CollapsableVert("SurfaceReconstruction & Filter by Densities", spacing_betn_items_in_region, margins_for_region)
+
+        self.rgn4_horiz_row_1_grid = gui.Horiz()
+        self.rgn4_horiz_row_1_grid.preferred_height = 2 * self.em
+        self.rgn4_radius_label = gui.Label("  R : ")
+        self.rgn4_radius_text = gui.TextEdit()
+        self.rgn4_radius_text.text_value = "0.37"
+        self.rgn4_nearest_neighbors_label = gui.Label("  NN : ")
+        self.rgn4_nearest_neighbors_text = gui.TextEdit()
+        self.rgn4_nearest_neighbors_text.text_value = "6"
+        self.rgn4_reconstruct_surf_depth_label = gui.Label("  D : ")
+        self.rgn4_reconstruct_surf_depth_text = gui.TextEdit()
+        self.rgn4_reconstruct_surf_depth_text.text_value = "9"
+
+
+        self.rgn4_horiz_row_1_grid.add_stretch()
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_radius_label)
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_radius_text)
+        self.rgn4_horiz_row_1_grid.add_stretch()
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_nearest_neighbors_label)
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_nearest_neighbors_text)
+        self.rgn4_horiz_row_1_grid.add_stretch()
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_reconstruct_surf_depth_label)
+        self.rgn4_horiz_row_1_grid.add_child(self.rgn4_reconstruct_surf_depth_text)
+
+        self.rgn4_horiz_row_2_grid = gui.Horiz()
+        self.rgn4_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.reconstruct_surface_btn = gui.Button(f"ShowReconstr.Surf.")
+        self.reconstruct_surface_btn.toggleable = True
+        self.reconstruct_surface_btn.set_on_clicked(self._on_reconstruct_surface_btn_clicked)
+        self.calculate_density_mesh_btn = gui.Button(f"ShowDensityMesh")
+        self.calculate_density_mesh_btn.toggleable = True
+        self.calculate_density_mesh_btn.set_on_clicked(self._on_calculate_density_mesh_btn_clicked)
+        self.rgn4_horiz_row_2_grid.add_stretch()
+        self.rgn4_horiz_row_2_grid.add_child(self.reconstruct_surface_btn)
+        self.rgn4_horiz_row_2_grid.add_stretch()
+        self.rgn4_horiz_row_2_grid.add_child(self.calculate_density_mesh_btn)
+        self.rgn4_horiz_row_2_grid.add_stretch()
+
+        self.rgn4_horiz_row_3_grid = gui.Horiz()
+        self.rgn4_horiz_row_3_grid.preferred_height = 2 * self.em
+        self.filter_density_slider = gui.Slider(gui.Slider.DOUBLE)
+        self.filter_density_slider.set_limits(0, 1)
+        self.filter_density_slider.double_value = 0.5
+        self.filter_density_btn = gui.Button(f"Filter Density Mesh")
+        self.filter_density_btn.set_on_clicked(self._on_filter_density_btn_clicked)
+
+        self.rgn4_horiz_row_3_grid.add_stretch()
+        self.rgn4_horiz_row_3_grid.add_child(self.filter_density_slider)
+        self.rgn4_horiz_row_3_grid.add_stretch()
+
+
+        self.rgn4_horiz_row_4_grid = gui.Horiz()
+        self.rgn4_horiz_row_4_grid.preferred_height = 2 * self.em
+        self.filter_density_btn = gui.Button(f"Filter Density Mesh")
+        self.filter_density_btn.toggleable = True
+        self.filter_density_btn.set_on_clicked(self._on_filter_density_btn_clicked)
+
+        self.rgn4_horiz_row_4_grid.add_stretch()
+        self.rgn4_horiz_row_4_grid.add_child(self.filter_density_btn)
+        self.rgn4_horiz_row_4_grid.add_stretch()
+
+
+        self.rgn4_surface_reconstruct_layout.add_child(self.rgn4_horiz_row_1_grid)
+        self.rgn4_surface_reconstruct_layout.add_child(self.rgn4_horiz_row_2_grid)
+        self.rgn4_surface_reconstruct_layout.add_child(self.rgn4_horiz_row_3_grid)
+        self.rgn4_surface_reconstruct_layout.add_child(self.rgn4_horiz_row_4_grid)
+
+        self.main_layout.add_child(self.rgn4_surface_reconstruct_layout)
+
+        # endregion 4
 
 
         # Add the layout to the window
@@ -282,7 +358,6 @@ class ScenarioCreatorApp:
         print("Target PCD Remove Button clicked")
         self.target_cloud = None
         self.widget3d.scene.scene.remove_geometry("target_cloud")
-
 
     def _on_roi_select_boundary_chk_box_clicked(self, checked):
         print("ROI Select Boundary Chk Box clicked : ", checked)
@@ -394,13 +469,122 @@ class ScenarioCreatorApp:
         self.widget3d.scene.scene.add_geometry("source_cloud_transformed", self.source_cloud_transformed, self.mat)
 
     @check_if_pcd_is_loaded
-    def _on_remove_transform_source_pcd_to_target_roi_clicked(self):
+    def _on_remove_transformed_source_pcd_to_target_roi_clicked(self):
         print("Remove Transform Source PCD to Target ROI Button clicked")
         self.widget3d.scene.scene.remove_geometry("source_cloud_transformed")
         self.source_cloud_transformed = None
         self.centroid_of_reference_roi = None
         self.centroid_of_target_roi = None
         self._on_roi_reset_btn_clicked()
+
+    
+    def _on_reconstruct_surface_btn_clicked(self):
+        if self.source_cloud is None:
+            self.reconstruct_surface_btn.is_on = False
+            print("Source PCD is not loaded")
+            return
+        print("Reconstruct Surface Button clicked")
+
+        if self.reconstruct_surface_btn.is_on:
+            self.reconstruct_surface_btn.text = "RemoveReconstr.Surf."
+            print("Reconstruct Surface Button is ON")
+            radius = float(self.rgn4_radius_text.text_value)
+            nearest_neighbors = int(self.rgn4_nearest_neighbors_text.text_value)
+            depth = int(self.rgn4_reconstruct_surf_depth_text.text_value)
+            search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=radius, max_nn=nearest_neighbors)
+            source_cloud = copy.deepcopy(self.source_cloud)
+            source_cloud.estimate_normals(search_param=search_param)
+            print('run Poisson surface reconstruction')
+            with o3d.utility.VerbosityContextManager(
+                    o3d.utility.VerbosityLevel.Debug) as cm:
+                self.reconstructed_source_mesh, self.reconstructed_source_mesh_densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+                    source_cloud, depth=depth)
+            print(self.reconstructed_source_mesh)
+            self.reconstructed_source_mesh.compute_vertex_normals()
+            # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
+            self.reconstructed_source_mesh.paint_uniform_color(np.array([[0.5],[0.5],[0.5]]))
+
+            self.widget3d.scene.scene.add_geometry("reconstructed_source_mesh", self.reconstructed_source_mesh, self.mat)
+        else:
+            self.reconstruct_surface_btn.text = "ShowReconstr.Surf."
+            print("Reconstruct Surface Button is OFF")
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh")
+            self.reconstructed_source_mesh = None
+            self.reconstructed_source_mesh_densities = None
+            if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_densities_with_color"):
+                self.calculate_density_mesh_btn.is_on = False
+                self.calculate_density_mesh_btn.text = "FilterDensityMesh"
+                self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_densities_with_color")
+                self.reconstructed_source_mesh_densities_with_color = None
+                self.reconstructed_source_mesh_densities_array = None
+
+                if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_filtered_densities_mesh"):
+                    self.filter_density_btn.is_on = False
+                    self.filter_density_btn.text = "FilterDensityMesh"
+                    self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_filtered_densities_mesh")
+                    self.reconstructed_source_mesh_filtered_densities_mesh = None
+                    print("Done removing filtered density")
+
+        self.widget3d.force_redraw()
+
+
+        
+
+
+    def _on_calculate_density_mesh_btn_clicked(self):
+        print("Calculate Density Mesh Button clicked")
+        if self.reconstructed_source_mesh is None or self.reconstructed_source_mesh_densities is None:
+            self.calculate_density_mesh_btn.is_on = False
+            print("Perform Surface Reconstruction First! Surface Mesh is not available")
+            return
+        if self.calculate_density_mesh_btn.is_on:
+            print("Calculate Density Mesh Button is ON")
+            self.calculate_density_mesh_btn.text = "RemoveDensityMesh"
+            self.reconstructed_source_mesh_densities_array = copy.deepcopy(np.asarray(self.reconstructed_source_mesh_densities))
+            density_colors = plt.get_cmap('plasma')(
+                (self.reconstructed_source_mesh_densities_array - self.reconstructed_source_mesh_densities_array.min()) / (self.reconstructed_source_mesh_densities_array.max() - self.reconstructed_source_mesh_densities_array.min()))
+            density_colors = density_colors[:, :3]
+            self.reconstructed_source_mesh_densities_with_color = o3d.geometry.TriangleMesh()
+            self.reconstructed_source_mesh_densities_with_color.vertices = self.reconstructed_source_mesh.vertices
+            self.reconstructed_source_mesh_densities_with_color.triangles = self.reconstructed_source_mesh.triangles
+            self.reconstructed_source_mesh_densities_with_color.triangle_normals = self.reconstructed_source_mesh.triangle_normals
+            self.reconstructed_source_mesh_densities_with_color.vertex_colors = o3d.utility.Vector3dVector(density_colors)
+            self.widget3d.scene.scene.add_geometry("reconstructed_source_mesh_densities_with_color", self.reconstructed_source_mesh_densities_with_color, self.mat)
+        else:
+            print("Calculate Density Mesh Button is OFF")
+            self.calculate_density_mesh_btn.text = "ShowDensityMesh"
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_densities_with_color")
+            self.reconstructed_source_mesh_densities_with_color = None
+            self.reconstructed_source_mesh_densities_array = None
+
+
+
+    def _on_filter_density_btn_clicked(self):
+        print("Filter Density Button clicked")
+        if self.reconstructed_source_mesh_densities_array is None:
+            self.filter_density_btn.is_on = False
+            self.filter_density_btn.text = "FilterDensityMesh"
+            print("Calculate Density Mesh First!")
+            return
+        if self.filter_density_btn.is_on:
+            print("Filter Density Button clicked ON")
+            self.filter_density_btn.text = "RemoveFilteredDensity"
+            self.reconstructed_source_mesh_filtered_densities_mesh = copy.deepcopy(self.reconstructed_source_mesh)
+            vertices_to_remove = self.reconstructed_source_mesh_densities_array < np.quantile(self.reconstructed_source_mesh_densities_array, self.filter_density_slider.double_value)
+            self.reconstructed_source_mesh_filtered_densities_mesh.remove_vertices_by_mask(vertices_to_remove)
+            self.reconstructed_source_mesh_filtered_densities_mesh.compute_vertex_normals()
+            # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
+            self.reconstructed_source_mesh_filtered_densities_mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
+            self.widget3d.scene.scene.add_geometry("reconstructed_source_mesh_filtered_densities_mesh", self.reconstructed_source_mesh_filtered_densities_mesh, self.mat)
+            self.widget3d.force_redraw()
+            print("Done filtering density")
+        else:
+            print("Filter Density Button clicked OFF")
+            self.filter_density_btn.text = "FilterDensityMesh"
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_filtered_densities_mesh")
+            self.reconstructed_source_mesh_filtered_densities_mesh = None
+            self.widget3d.force_redraw()
+            print("Done removing filtered density")
 
     def _on_mouse_widget3d(self, event):
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
