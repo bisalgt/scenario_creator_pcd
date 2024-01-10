@@ -31,6 +31,10 @@ class ScenarioCreatorApp:
         self.source_cloud_transformed = None
         self.reconstructed_source_mesh = None
         self.reconstructed_source_mesh_densities = None
+        self.reconstructed_source_mesh_filtered_densities_mesh = None
+        self.raycasted_source_cloud = None
+
+
 
         
         
@@ -249,8 +253,6 @@ class ScenarioCreatorApp:
         self.filter_density_slider = gui.Slider(gui.Slider.DOUBLE)
         self.filter_density_slider.set_limits(0, 1)
         self.filter_density_slider.double_value = 0.5
-        self.filter_density_btn = gui.Button(f"Filter Density Mesh")
-        self.filter_density_btn.set_on_clicked(self._on_filter_density_btn_clicked)
 
         self.rgn4_horiz_row_3_grid.add_stretch()
         self.rgn4_horiz_row_3_grid.add_child(self.filter_density_slider)
@@ -276,6 +278,51 @@ class ScenarioCreatorApp:
         self.main_layout.add_child(self.rgn4_surface_reconstruct_layout)
 
         # endregion 4
+
+
+        # region 5 : Ray Casting and Visualization
+        self.rgn5_raycast_layout = gui.CollapsableVert("Raycasting", spacing_betn_items_in_region, margins_for_region)
+
+        self.rgn5_horiz_row_1_grid = gui.Horiz()
+        self.rgn5_horiz_row_1_grid.preferred_height = 2 * self.em
+
+        self.filter_rays_label = gui.Label("Filter Rays : ")
+
+        self.filter_rays_slider = gui.Slider(gui.Slider.DOUBLE)
+        self.filter_rays_slider.set_limits(0, 1)
+        self.filter_rays_slider.double_value = 0.561
+
+        self.rgn5_horiz_row_1_grid.add_stretch()
+        self.rgn5_horiz_row_1_grid.add_child(self.filter_rays_label)
+        self.rgn5_horiz_row_1_grid.add_stretch()
+        self.rgn5_horiz_row_1_grid.add_child(self.filter_rays_slider)
+        self.rgn5_horiz_row_1_grid.add_stretch()
+
+        self.rgn5_horiz_row_2_grid = gui.Horiz()
+        self.rgn5_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.show_rays_btn = gui.Button(f"Show Rays")
+        self.show_rays_btn.toggleable = True
+        self.show_rays_btn.set_on_clicked(self._on_show_rays_btn_clicked)
+        self.show_raycasted_pcd_btn = gui.Button(f"Show RayCasted PCD")
+        self.show_raycasted_pcd_btn.toggleable = True
+        self.show_raycasted_pcd_btn.set_on_clicked(self._on_show_raycasted_pcd_btn_clicked)
+        self.rgn5_horiz_row_2_grid.add_stretch()
+        self.rgn5_horiz_row_2_grid.add_child(self.show_rays_btn)
+        self.rgn5_horiz_row_2_grid.add_stretch()
+        self.rgn5_horiz_row_2_grid.add_child(self.show_raycasted_pcd_btn)
+        self.rgn5_horiz_row_2_grid.add_stretch()
+
+
+
+
+        self.rgn5_raycast_layout.add_child(self.rgn5_horiz_row_1_grid)
+        self.rgn5_raycast_layout.add_child(self.rgn5_horiz_row_2_grid)
+
+
+        self.main_layout.add_child(self.rgn5_raycast_layout)
+
+        # endregion 5
+
 
 
         # Add the layout to the window
@@ -585,6 +632,91 @@ class ScenarioCreatorApp:
             self.reconstructed_source_mesh_filtered_densities_mesh = None
             self.widget3d.force_redraw()
             print("Done removing filtered density")
+
+    
+    def _on_show_rays_btn_clicked(self):
+        print("Show Rays Button clicked")
+        if self.selected_pcd_indices is None:
+            self.show_rays_btn.is_on = False
+            self.show_rays_btn.text = "Show Rays"
+            print("No points Indices selected for Rays")
+            return
+        if self.show_rays_btn.is_on:
+            print("Show Rays Button is ON")
+            self.show_rays_btn.text = "Remove Rays"
+            rays_select_ratio = self.filter_rays_slider.double_value
+            complete_rays = np.asarray(self.target_cloud.points)[self.selected_pcd_indices]
+            random_rays_count = int(rays_select_ratio * complete_rays.shape[0])
+            selected_rows_indices = np.random.choice(complete_rays.shape[0], size=random_rays_count, replace=False)
+            # Extract the subset of the array based on the selected indices
+            randomly_selected_rays = complete_rays[selected_rows_indices, :]
+            origin = np.array([[0, 0, 0]])
+            randomly_selected_rays_with_origin = np.concatenate((origin, randomly_selected_rays), axis=0)
+            lines = [[0, i] for i in range(1, len(randomly_selected_rays_with_origin))]
+            self.line_set = o3d.geometry.LineSet()
+            self.line_set.points = o3d.utility.Vector3dVector(randomly_selected_rays_with_origin)
+            self.line_set.lines = o3d.utility.Vector2iVector(lines)
+            self.line_set.colors = o3d.utility.Vector3dVector(np.array([[1, 1, 0] for i in range(len(lines))]))
+            self.widget3d.scene.scene.add_geometry("directed_rays", self.line_set, self.mat)
+        else:
+            print("Show Rays Button is OFF")
+            self.show_rays_btn.text = "Show Rays"
+            self.widget3d.scene.scene.remove_geometry("directed_rays")
+            self.line_set = None
+
+
+    def _on_show_raycasted_pcd_btn_clicked(self):
+        print("Show Raycasted PCD Button clicked")
+        if self.reconstructed_source_mesh_filtered_densities_mesh is None or self.selected_pcd_indices is None:
+            self.show_raycasted_pcd_btn.is_on = False
+            self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
+            print("No filtered density mesh or No selected pcd region")
+            return
+        if self.show_raycasted_pcd_btn.is_on:
+            print("Show Raycasted PCD Button is ON")
+            self.show_raycasted_pcd_btn.text = "RemoveRayCastedPCD"
+            complete_rays_direction = np.asarray(self.target_cloud.points)[self.selected_pcd_indices]
+            rays_select_ratio = self.filter_rays_slider.double_value
+            random_rays_count = int(rays_select_ratio * complete_rays_direction.shape[0])
+            randomly_selected_raycasted_rays = complete_rays_direction[np.random.choice(complete_rays_direction.shape[0], size=random_rays_count, replace=False), :]
+            ray_origin = np.zeros((len(randomly_selected_raycasted_rays), 3))
+            rays_array = np.concatenate((ray_origin, randomly_selected_raycasted_rays), axis=1)
+
+            # Create a Scene and add the triangle mesh
+            mesh_new = o3d.t.geometry.TriangleMesh.from_legacy(self.reconstructed_source_mesh_filtered_densities_mesh)
+            scene = o3d.t.geometry.RaycastingScene()
+            scene.add_triangles(mesh_new)
+
+            # Creating Rays for casting using the rays array created earlier
+            rays = o3d.core.Tensor(rays_array,dtype=o3d.core.Dtype.Float32)
+            # Casting rays on the scene
+            ans = scene.cast_rays(rays)
+
+            triangle_ids = [i.numpy() for i in ans["primitive_ids"] if i != scene.INVALID_ID] # list of all the triangles through which rays intersected
+            triangle_indices = [i.numpy() for i in mesh_new.triangle.indices] # list of all the triangles in the mesh
+            vertex_list = [i.numpy() for i in mesh_new.vertex.positions]
+            all_intersected_points = np.zeros((len(triangle_ids), 3)) # Creating an empty array
+            for indx, triangle_id in enumerate(triangle_ids): # List of Triangles through which rays intersected
+                triangle_vertex = triangle_indices[triangle_id] # Gives the list of vertex
+                vertex0 = vertex_list[triangle_vertex[0]] # Gives the corresponding vertex value in x,y,z
+                vertex1 = vertex_list[triangle_vertex[1]] # Gives the corresponding vertex value in x,y,z
+                vertex2 = vertex_list[triangle_vertex[2]] # Gives the corresponding vertex value in x,y,z
+                all_intersected_points[indx] = [(vertex0[i] + vertex1[i] + vertex2[i])/3 for i in range(3)] # Computing the centroid for now
+            print(all_intersected_points.shape)
+
+            self.raycasted_source_cloud = o3d.geometry.PointCloud()
+            self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(all_intersected_points)
+            self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
+
+            self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
+
+        else:
+            print("Show Raycasted PCD Button is OFF")
+            self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
+            self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
+            self.raycasted_source_cloud = None
+            print("Done removing raycasted source cloud")
+
 
     def _on_mouse_widget3d(self, event):
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
