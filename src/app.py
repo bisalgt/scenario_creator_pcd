@@ -25,7 +25,10 @@ class ScenarioCreatorApp:
         
         self.source_cloud = None
         self.target_cloud = None
+        self.source_cloud_transformed = None
         self.selected_pcd_indices = None
+        self.centroid_of_reference_roi = None
+        self.centroid_of_target_roi = None
 
         
         
@@ -158,6 +161,44 @@ class ScenarioCreatorApp:
 
         # endregion 2
 
+        # region 3: Transformation of Source Cloud to the selected ROI of Target Cloud
+        
+        self.rgn3_transform_source_layout = gui.CollapsableVert("Transform Source Cloud to Target ROI", spacing_betn_items_in_region,
+                                         margins_for_region)
+
+
+        self.rgn3_horiz_row_1_grid = gui.Horiz()
+        self.rgn3_horiz_row_1_grid.preferred_height = 2 * self.em
+        self.calculate_centroid_of_reference_roi_btn = gui.Button(f" FindRef.ROICenter ")
+        self.calculate_centroid_of_reference_roi_btn.set_on_clicked(self._on_calculate_centroid_of_reference_roi_btn_clicked)
+        self.calculate_centroid_of_target_roi_btn = gui.Button(f"FindTarget.ROICenter")
+        self.calculate_centroid_of_target_roi_btn.set_on_clicked(self._on_calculate_centroid_of_target_roi_btn_clicked)
+        self.rgn3_horiz_row_1_grid.add_stretch()
+        self.rgn3_horiz_row_1_grid.add_child(self.calculate_centroid_of_reference_roi_btn)
+        self.rgn3_horiz_row_1_grid.add_stretch()
+        self.rgn3_horiz_row_1_grid.add_child(self.calculate_centroid_of_target_roi_btn)
+        self.rgn3_horiz_row_1_grid.add_stretch()
+
+        self.rgn3_horiz_row_2_grid = gui.Horiz()
+        self.rgn3_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.transform_source_pcd_to_target_roi = gui.Button(f"Transf. Source Cloud")
+        self.transform_source_pcd_to_target_roi.set_on_clicked(self._on_transform_source_pcd_to_target_roi_clicked)
+        self.remove_transform_source_pcd_to_target_roi = gui.Button(f"RemoveTransformSrc")
+        self.remove_transform_source_pcd_to_target_roi.set_on_clicked(self._on_remove_transform_source_pcd_to_target_roi_clicked)
+        self.rgn3_horiz_row_2_grid.add_stretch()
+        self.rgn3_horiz_row_2_grid.add_child(self.transform_source_pcd_to_target_roi)
+        self.rgn3_horiz_row_2_grid.add_stretch()
+        self.rgn3_horiz_row_2_grid.add_child(self.remove_transform_source_pcd_to_target_roi)
+        self.rgn3_horiz_row_2_grid.add_stretch()
+
+        self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_1_grid)
+        self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_2_grid)
+
+        self.main_layout.add_child(self.rgn3_transform_source_layout)
+
+
+
+        # endregion 3
 
 
 
@@ -174,6 +215,22 @@ class ScenarioCreatorApp:
         self.widget3d.set_on_mouse(self._on_mouse_widget3d)
 
     # region member functions
+        
+    def _is_pcd_loaded(self):
+        if self.source_cloud is None or self.target_cloud is None:
+            print("Source or Target PCD is not loaded")
+            return False
+        else:
+            return True
+
+    def check_if_pcd_is_loaded(func):
+        def wrapper(self, *args, **kwargs):
+            if self.source_cloud is None or self.target_cloud is None:
+                print("Source or Target PCD is not loaded")
+                return
+            else:
+                return func(self, *args, **kwargs)
+        return wrapper
 
     def _on_window_resize(self, width, height):
         main_layout_width = 25 * self.em  # Adjust as needed
@@ -200,13 +257,16 @@ class ScenarioCreatorApp:
 
     
     def _on_source_pcd_remove_btn_clicked(self):
+        if self.source_cloud is None:
+            print("Source PCD is not loaded to remove")
+            return
         print("Source PCD Remove Button clicked")
         self.source_cloud = None
         self.widget3d.scene.scene.remove_geometry("source_cloud")
 
 
     def _on_target_pcd_load_btn_clicked(self):
-        print("Source PCD Load Button clicked")
+        print("Target PCD Load Button clicked")
         self.target_cloud = o3d.io.read_point_cloud(self.target_pcd_text.text_value)
         num_points = len(self.target_cloud.points)
         colors = np.zeros((num_points, 3))
@@ -216,6 +276,9 @@ class ScenarioCreatorApp:
 
     
     def _on_target_pcd_remove_btn_clicked(self):
+        if self.target_cloud is None:
+            print("Target PCD is not loaded to remove")
+            return
         print("Target PCD Remove Button clicked")
         self.target_cloud = None
         self.widget3d.scene.scene.remove_geometry("target_cloud")
@@ -223,7 +286,8 @@ class ScenarioCreatorApp:
 
     def _on_roi_select_boundary_chk_box_clicked(self, checked):
         print("ROI Select Boundary Chk Box clicked : ", checked)
-
+    
+    @check_if_pcd_is_loaded
     def _on_roi_select_rect_regn_btn_clicked(self):  # Maybe later it could be dynamic for both clouds
         print("ROI Select Rectangular Region Button clicked")
         # Convert the point cloud to a numpy array
@@ -248,8 +312,10 @@ class ScenarioCreatorApp:
         self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
         self.widget3d.force_redraw()
     
+    @check_if_pcd_is_loaded
     def _on_roi_reset_btn_clicked(self):
         print("ROI Reset Button clicked")
+        self.selected_pcd_indices = None
         self.widget3d.scene.scene.remove_geometry("target_cloud")
         # Reset the color of the target cloud to green
         num_points = len(self.target_cloud.points)
@@ -259,9 +325,88 @@ class ScenarioCreatorApp:
         # Add the target cloud again
         self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
 
+    @check_if_pcd_is_loaded
+    def _calculate_centroid_of_roi(self):
+        if not self._is_pcd_loaded():
+            return
+        if self.selected_pcd_indices is None:
+            print("No ROI selected")
+            return
+        _centroid = np.asarray(self.target_cloud.points)[self.selected_pcd_indices].mean(axis=0)
+        return _centroid
+    
+    @check_if_pcd_is_loaded
+    def _on_calculate_centroid_of_reference_roi_btn_clicked(self):
+        print("Calculate Centroid of Reference ROI Button clicked")
+        self.centroid_of_reference_roi = self._calculate_centroid_of_roi()
+        print("Centroid of Reference ROI: ", self.centroid_of_reference_roi)
+
+    @check_if_pcd_is_loaded
+    def _on_calculate_centroid_of_target_roi_btn_clicked(self):
+        print("Calculate Centroid of Target ROI Button clicked")
+        self.centroid_of_target_roi = self._calculate_centroid_of_roi()
+        print("Centroid of Target ROI: ", self.centroid_of_target_roi)
+
+    @check_if_pcd_is_loaded
+    def _on_transform_source_pcd_to_target_roi_clicked(self):
+        print("Transform Source PCD to Target ROI Button clicked")
+
+        if self.centroid_of_reference_roi is None or self.centroid_of_target_roi is None:
+            print("Centroids of ROIs are not calculated")
+            return
+        # Translation part works fine
+        translation = self.centroid_of_target_roi - self.centroid_of_reference_roi
+        print("Translation: ", translation)
+        translation_matrix = np.identity(4)
+        translation_matrix[:3, 3] = translation
+        self.source_cloud_transformed  = copy.deepcopy(self.source_cloud).transform(translation_matrix)
+
+        # Needs to figure out rotation part
+        start_vector = np.array(self.source_cloud.get_center())
+        end_vector = np.array(self.source_cloud_transformed.get_center())
+        # Calculate the cosine of the angle
+        cos_angle = np.dot(start_vector, end_vector) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
+        # Calculate the sine of the angle
+        sin_angle = np.linalg.norm(np.cross(start_vector, end_vector)) / (np.linalg.norm(start_vector) * np.linalg.norm(end_vector))
+        # Calculate the angle in radians
+        angle_rad = np.arctan2(sin_angle, cos_angle)
+        # If the z-component of the cross product is negative, the angle should be negative
+        if np.cross(start_vector, end_vector)[2] < 0:
+            print("Negative angle")
+            angle_rad = -angle_rad
+        else:
+            print("Positive angle")
+        # Convert the angle to degrees
+        angle_deg = np.degrees(angle_rad)
+
+
+        print("Angle in degrees: ", angle_deg)
+        print("Angle in radians: ", angle_rad)
+
+        # Create the rotation matrix
+        rotation_matrix = np.array([
+            [np.cos(angle_rad), -np.sin(angle_rad), 0],
+            [np.sin(angle_rad), np.cos(angle_rad), 0],
+            [0, 0, 1]
+        ])
+        print("Rotation Matrix: ", rotation_matrix)
+        self.source_cloud_transformed.rotate(rotation_matrix, center=np.asarray(self.source_cloud_transformed.get_center()))
+        self.widget3d.scene.scene.add_geometry("source_cloud_transformed", self.source_cloud_transformed, self.mat)
+
+    @check_if_pcd_is_loaded
+    def _on_remove_transform_source_pcd_to_target_roi_clicked(self):
+        print("Remove Transform Source PCD to Target ROI Button clicked")
+        self.widget3d.scene.scene.remove_geometry("source_cloud_transformed")
+        self.source_cloud_transformed = None
+        self.centroid_of_reference_roi = None
+        self.centroid_of_target_roi = None
+        self._on_roi_reset_btn_clicked()
+
     def _on_mouse_widget3d(self, event):
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
             if self.roi_select_boundary_chk_box.checked:
+                if not self._is_pcd_loaded():
+                    return gui.Widget.EventCallbackResult.IGNORED
                 print("CTRL/CMD + Mouse DOWN BTN Clicked")
                 print(event.x, event.y) # prints the mouse position. 0,0 is the top left corner of the window
                 def depth_callback(depth_image):
