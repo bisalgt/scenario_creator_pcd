@@ -31,10 +31,13 @@ class ScenarioCreatorApp:
         self.source_cloud_transformed = None
         self.reconstructed_source_mesh = None
         self.reconstructed_source_mesh_densities = None
+        self.reconstructed_source_mesh_densities_array = None
         self.reconstructed_source_mesh_filtered_densities_mesh = None
         self.raycasted_source_cloud = None
         self.final_merged_cloud = None
         self.final_merged_cloud_after_shadow_casting = None
+        self.shadowed_cloud = None
+        self.shadowed_cloud_indices = None
 
 
 
@@ -362,6 +365,76 @@ class ScenarioCreatorApp:
 
 
         # endregion 6
+
+
+        # region 7 : Show/ Hide Visualizations (DONOT Reset any Variables, just remove from the visualization geometry)
+
+        self.rgn7_show_hide_layout = gui.CollapsableVert("Show/Hide Visualizations", spacing_betn_items_in_region, margins_for_region)
+
+        self.rgn7_horiz_row_1_grid = gui.Horiz()
+        self.rgn7_horiz_row_1_grid.preferred_height = 2 * self.em
+        self.rgn7_show_source_pcd_chk_box = gui.Checkbox(f"Show Source PCD")
+        self.rgn7_show_source_pcd_chk_box.set_on_checked(self._on_rgn7_show_source_pcd_chk_box_clicked)
+        self.rgn7_show_target_pcd_chk_box = gui.Checkbox(f"Show Target PCD")
+        self.rgn7_show_target_pcd_chk_box.set_on_checked(self._on_rgn7_show_target_pcd_chk_box_clicked)
+
+        self.rgn7_horiz_row_1_grid.add_stretch()
+        self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_source_pcd_chk_box)
+        self.rgn7_horiz_row_1_grid.add_stretch()
+        self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_target_pcd_chk_box)
+        self.rgn7_horiz_row_1_grid.add_stretch()
+
+
+        self.rgn7_horiz_row_2_grid = gui.Horiz()
+        self.rgn7_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.rgn7_show_recostructed_surface_chk_box = gui.Checkbox(f"Show Reconstruced Surface")
+        self.rgn7_show_recostructed_surface_chk_box.set_on_checked(self._on_rgn7_show_recostructed_surface_chk_box_clicked)
+        self.rgn7_show_reconst_density_mesh_chk_box = gui.Checkbox(f"Show Filtered Density Mesh")
+        self.rgn7_show_reconst_density_mesh_chk_box.set_on_checked(self._on_rgn7_show_reconst_density_mesh_chk_box_clicked)
+
+        self.rgn7_horiz_row_2_grid.add_stretch()
+        self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_recostructed_surface_chk_box)
+        self.rgn7_horiz_row_2_grid.add_stretch()
+        self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_reconst_density_mesh_chk_box)
+        self.rgn7_horiz_row_2_grid.add_stretch()
+
+
+        self.rgn7_horiz_row_3_grid = gui.Horiz()
+        self.rgn7_horiz_row_3_grid.preferred_height = 2 * self.em
+        self.rgn7_show_filtered_density_mesh_chk_box = gui.Checkbox(f"Show Filtered Density Mesh")
+        self.rgn7_show_filtered_density_mesh_chk_box.set_on_checked(self._on_rgn7_show_filtered_density_mesh_chk_box_clicked)
+        self.rgn7_show_directed_rays_chk_box = gui.Checkbox(f"Show Rays")
+        self.rgn7_show_directed_rays_chk_box.set_on_checked(self._on_rgn7_show_directed_rays_chk_box_clicked)
+
+        self.rgn7_horiz_row_3_grid.add_stretch()
+        self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_filtered_density_mesh_chk_box)
+        self.rgn7_horiz_row_3_grid.add_stretch()
+        self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_directed_rays_chk_box)
+        self.rgn7_horiz_row_3_grid.add_stretch()
+        
+
+        self.rgn7_horiz_row_4_grid = gui.Horiz()
+        self.rgn7_horiz_row_4_grid.preferred_height = 2 * self.em
+        self.rgn7_show_raycasted_source_pcd_chk_box = gui.Checkbox(f"Show RayCasted PCD")
+        self.rgn7_show_raycasted_source_pcd_chk_box.set_on_checked(self._on_rgn7_show_raycasted_source_pcd_chk_box_clicked)
+        self.rgn7_show_casted_shadow_chk_box = gui.Checkbox(f"Show Shadow")
+        self.rgn7_show_casted_shadow_chk_box.set_on_checked(self._on_rgn7_show_casted_shadow_chk_box_clicked)
+
+        self.rgn7_horiz_row_4_grid.add_stretch()
+        self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
+        self.rgn7_horiz_row_4_grid.add_stretch()
+        self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_casted_shadow_chk_box)
+        self.rgn7_horiz_row_4_grid.add_stretch()
+
+
+        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_1_grid)
+        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_2_grid)
+        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_3_grid)
+        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_4_grid)
+
+        self.main_layout.add_child(self.rgn7_show_hide_layout)
+
+        # endregion 7
 
         # Add the layout to the window
         self.window.add_child(self.main_layout)
@@ -767,6 +840,9 @@ class ScenarioCreatorApp:
             self.show_shadow_casting_btn.text = "Remove Casted Shadow"
             print("Show Shadow Casting Button is ON")
             self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
+
+            # merged_cloud_original_indices = np.concatenate((np.asarray(self.target_cloud.points), np.asarray(self.raycasted_source_cloud.points)), axis=0)
+
             # Hidden Point Removal Used for Shadowcasting
             diameter = np.linalg.norm(
                 np.asarray(self.final_merged_cloud.get_max_bound()) - np.asarray(self.final_merged_cloud.get_min_bound()))
@@ -775,22 +851,136 @@ class ScenarioCreatorApp:
             radius = diameter * int(self.rgn6_radius_text.text_value)
             print("Get all points that are visible from given view point")
             self.final_merged_cloud = o3d.t.geometry.PointCloud.from_legacy(self.final_merged_cloud)
-            _, pt_map = self.final_merged_cloud.hidden_point_removal(camera, radius)
-            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud.select_by_index(pt_map)
-            self.widget3d.scene.scene.remove_geometry("target_cloud")
-            self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
-            # Need to make it more robust by testing if the geometry exists and Raycasting button state
+            _, self.final_merged_cloud_without_shadow_indices = self.final_merged_cloud.hidden_point_removal(camera, radius)
+            
+            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud.select_by_index(self.final_merged_cloud_without_shadow_indices)
+            self.shadowed_cloud = self.final_merged_cloud.select_by_index(self.final_merged_cloud_without_shadow_indices, invert=True)
+            self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
             self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
         else:
-            self.show_shadow_casting_btn.text = "Show Shadow Casting"
+            self.show_shadow_casting_btn.text = "Show Shadow"
             print("Show Shadow Casting Button is OFF")
+            self.widget3d.scene.scene.show_geometry("target_cloud", show=True)
             self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
             self.final_merged_cloud_after_shadow_cast = None
-            self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
-            self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
+            self.shadowed_cloud = None
+            self.shadowed_cloud_indices = None
             print("Done removing casted shadow")
+        
+        self.widget3d.force_redraw()
 
 
+    def _on_rgn7_show_source_pcd_chk_box_clicked(self, checked):
+        print("Show Source PCD Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("source_cloud"):
+                print("Source PCD is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("source_cloud", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("source_cloud"):
+                self.widget3d.scene.scene.show_geometry("source_cloud", show=False)
+            else:
+                print("Source PCD is not available to remove")
+            
+
+
+    def _on_rgn7_show_target_pcd_chk_box_clicked(self, checked):
+        print("Show Target PCD Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("target_cloud"):
+                print("Target PCD is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("target_cloud", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("target_cloud"):
+                self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
+            else:
+                print("Target PCD is not available to remove")
+
+    def _on_rgn7_show_recostructed_surface_chk_box_clicked(self, checked):
+        print("Show Reconstructed Source Surface Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh"):
+                print("Reconstructed Source Surface is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh"):
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh", show=False)
+            else:
+                print("Reconstructed Source Surface is not available to remove")
+
+    
+    def _on_rgn7_show_reconst_density_mesh_chk_box_clicked(self, checked):
+        print("Show Reconstructed Source Surface Densities Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_densities_with_color"):
+                print("Reconstructed Source Surface Densities is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_densities_with_color", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_densities_with_color"):
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_densities_with_color", show=False)
+            else:
+                print("Reconstructed Source Surface Densities is not available to remove")
+    
+    
+    def _on_rgn7_show_filtered_density_mesh_chk_box_clicked(self, checked):
+        print("Show Reconstructed Filtered Source Surface Densities Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_filtered_densities_mesh"):
+                print("Reconstructed Filtered Source Surface Densities is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_filtered_densities_mesh", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_filtered_densities_mesh"):
+                self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_filtered_densities_mesh", show=False)
+            else:
+                print("Reconstructed Filtered Source Surface Densities is not available to remove")
+    
+
+    def _on_rgn7_show_directed_rays_chk_box_clicked(self, checked):
+        print("Show Rays Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("directed_rays"):
+                print("Rays is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("directed_rays", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("directed_rays"):
+                self.widget3d.scene.scene.show_geometry("directed_rays", show=False)
+            else:
+                print("Rays is not available to remove")
+
+
+    def _on_rgn7_show_raycasted_source_pcd_chk_box_clicked(self, checked):
+        print("Show Raycasted PointCloud Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("raycasted_source_cloud"):
+                print("Raycasted PointCloud is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("raycasted_source_cloud", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("raycasted_source_cloud"):
+                self.widget3d.scene.scene.show_geometry("raycasted_source_cloud", show=False)
+            else:
+                print("Raycasted PointCloud is not available to remove")
+
+
+    def _on_rgn7_show_casted_shadow_chk_box_clicked(self, checked):
+        print("Show ShadowCasted PointCloud Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("final_merged_cloud_after_shadow_cast"):
+                print("ShadowCasted PointCloud is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("final_merged_cloud_after_shadow_cast", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("final_merged_cloud_after_shadow_cast"):
+                self.widget3d.scene.scene.show_geometry("final_merged_cloud_after_shadow_cast", show=False)
+            else:
+                print("ShadowCasted PointCloud is not available to remove")
+    
     
 
 
