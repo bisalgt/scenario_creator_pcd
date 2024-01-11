@@ -487,7 +487,8 @@ class ScenarioCreatorApp:
         num_points = len(self.source_cloud.points)
         colors = np.zeros((num_points, 3))
         self.source_cloud.colors = o3d.utility.Vector3dVector(colors)
-        self.widget3d.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
+        self.widget3d.scene.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
+        self.widget3d.force_redraw()
 
     
     def _on_source_pcd_remove_btn_clicked(self):
@@ -497,6 +498,7 @@ class ScenarioCreatorApp:
         print("Source PCD Remove Button clicked")
         self.source_cloud = None
         self.widget3d.scene.scene.remove_geometry("source_cloud")
+        self.widget3d.force_redraw()
 
 
     def _on_target_pcd_load_btn_clicked(self):
@@ -981,10 +983,8 @@ class ScenarioCreatorApp:
             else:
                 print("ShadowCasted PointCloud is not available to remove")
     
-    
-
-
     def _on_mouse_widget3d(self, event):
+        print("Mouse event")
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
             if self.roi_select_boundary_chk_box.checked:
                 if not self._is_pcd_loaded():
@@ -1018,7 +1018,6 @@ class ScenarioCreatorApp:
                 self.widget3d.scene.scene.render_to_depth_image(depth_callback)
                 return gui.Widget.EventCallbackResult.HANDLED
         return gui.Widget.EventCallbackResult.IGNORED
-
 
 
     # endregion member functions
