@@ -435,6 +435,45 @@ class ScenarioCreatorApp:
         self.main_layout.add_child(self.rgn7_show_hide_layout)
 
         # endregion 7
+        
+        # region 8 : Save Final Merged Point Cloud and Reset All Variables
+
+        self.rgn8_save_final_merged_pcd_layout = gui.CollapsableVert("Save Final Merged Point Cloud", spacing_betn_items_in_region, margins_for_region)
+        
+        self.rgn8_horiz_row_1_grid = gui.Horiz()
+        self.rgn8_horiz_row_1_grid.preferred_height = 2 * self.em
+        self.rgn8_save_final_merged_pcd_label = gui.Label("Filename : ")
+        self.rgn8_save_final_merged_pcd_text = gui.TextEdit()
+        self.rgn8_save_final_merged_pcd_text.text_value = "final_merged_pcd.ply"
+        
+        self.rgn8_horiz_row_1_grid.add_stretch()
+        self.rgn8_horiz_row_1_grid.add_child(self.rgn8_save_final_merged_pcd_label)
+        self.rgn8_horiz_row_1_grid.add_child(self.rgn8_save_final_merged_pcd_text)
+        self.rgn8_horiz_row_1_grid.add_stretch()
+
+
+        self.rgn8_horiz_row_2_grid = gui.Horiz()
+        self.rgn8_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.rgn8_save_final_merged_pcd_btn = gui.Button(f"Save Final Merged PCD")
+        self.rgn8_save_final_merged_pcd_btn.set_on_clicked(self._on_rgn8_save_final_merged_pcd_btn_clicked)
+        self.rgn8_reset_all_variables_btn = gui.Button(f"Reset All")
+        self.rgn8_reset_all_variables_btn.set_on_clicked(self._on_rgn8_reset_all_variables_btn_clicked)
+
+        self.rgn8_horiz_row_2_grid.add_stretch()
+        self.rgn8_horiz_row_2_grid.add_child(self.rgn8_save_final_merged_pcd_btn)
+        self.rgn8_horiz_row_2_grid.add_stretch()
+        self.rgn8_horiz_row_2_grid.add_child(self.rgn8_reset_all_variables_btn)
+        self.rgn8_horiz_row_2_grid.add_stretch()
+
+
+        self.rgn8_save_final_merged_pcd_layout.add_child(self.rgn8_horiz_row_1_grid)
+        self.rgn8_save_final_merged_pcd_layout.add_child(self.rgn8_horiz_row_2_grid)
+
+        self.main_layout.add_child(self.rgn8_save_final_merged_pcd_layout)
+
+        # endregion 8
+
+
 
         # Add the layout to the window
         self.window.add_child(self.main_layout)
@@ -866,7 +905,7 @@ class ScenarioCreatorApp:
             self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
             self.final_merged_cloud_after_shadow_cast = None
             self.shadowed_cloud = None
-            self.shadowed_cloud_indices = None
+            self.final_merged_cloud_without_shadow_indices = None
             print("Done removing casted shadow")
         
         self.widget3d.force_redraw()
@@ -983,6 +1022,101 @@ class ScenarioCreatorApp:
             else:
                 print("ShadowCasted PointCloud is not available to remove")
     
+    def _on_rgn8_save_final_merged_pcd_btn_clicked(self):
+        print("Save Final Merged PCD Button clicked")
+        if self.final_merged_cloud_after_shadow_cast is None:
+            print("Final Merged PCD is not available to save")
+            return
+        if self.final_merged_cloud_after_shadow_cast is None:
+            print("Final Merged PCD is not available to save")
+            return
+        else:
+            if self.rgn8_save_final_merged_pcd_text.text_value == "":
+                print("Please enter a valid file name")
+                return
+            elif self.rgn8_save_final_merged_pcd_text.text_value[-4:] != ".ply":
+                print("Please enter a valid file name with .ply extension")
+                return
+            o3d.io.write_point_cloud(self.rgn8_save_final_merged_pcd_text.text_value, self.final_merged_cloud_after_shadow_cast.to_legacy())
+            print("Final Merged PCD saved successfully")
+
+    def _on_rgn8_reset_all_variables_btn_clicked(self):
+        print("Reset All Variables Button clicked")
+
+        self.source_cloud = None
+        self.target_cloud = None
+        self.reconstructed_source_mesh = None
+        self.reconstructed_source_mesh_densities = None
+        self.reconstructed_source_mesh_densities_array = None
+        self.reconstructed_source_mesh_densities_with_color = None
+        self.reconstructed_source_mesh_filtered_densities_mesh = None
+        self.raycasted_source_cloud = None
+        self.final_merged_cloud_after_shadow_cast = None
+        self.centroid_of_reference_roi = None
+        self.centroid_of_target_roi = None
+        self.selected_pcd_indices = None
+        self.line_set = None
+        self.shadowed_cloud = None
+        self.shadowed_cloud_indices = None
+        self.final_merged_cloud_after_shadow_cast = None
+
+        # open3d gui geometry reset
+        if self.widget3d.scene.scene.has_geometry("source_cloud"):
+            self.widget3d.scene.scene.remove_geometry("source_cloud")
+        if self.widget3d.scene.scene.has_geometry("target_cloud"):
+            self.widget3d.scene.scene.remove_geometry("target_cloud")
+        if self.widget3d.scene.scene.has_geometry("source_cloud_transformed"):
+            self.widget3d.scene.scene.remove_geometry("source_cloud_transformed")
+        if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh"):
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh")
+        if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_densities_with_color"):
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_densities_with_color")
+        if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_filtered_densities_mesh"):
+            self.widget3d.scene.scene.remove_geometry("reconstructed_source_mesh_filtered_densities_mesh")
+        if self.widget3d.scene.scene.has_geometry("directed_rays"):
+            self.widget3d.scene.scene.remove_geometry("directed_rays")
+        if self.widget3d.scene.scene.has_geometry("raycasted_source_cloud"):
+            self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
+        if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
+            self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
+        
+
+        # GUI Elements
+        self.source_pcd_text.text_value = "only_person_cloud.ply"
+        self.target_pcd_text.text_value = "only_road_cloud.ply"
+        self.roi_select_boundary_chk_box.checked = False
+        self.rgn4_radius_text.text_value = "0.37"
+        self.rgn4_nearest_neighbors_text.text_value = "6"
+        self.rgn4_reconstruct_surf_depth_text.text_value = "9"
+        self.reconstruct_surface_btn.is_on = False
+        self.reconstruct_surface_btn.text = "ShowReconstr.Surf."
+        self.calculate_density_mesh_btn.is_on = False
+        self.calculate_density_mesh_btn.text = "ShowDensityMesh"
+        self.filter_density_slider.double_value = 0.5
+        self.filter_density_btn.is_on = False
+        self.filter_density_btn.text = "FilterDensityMesh"
+        self.filter_rays_slider.double_value = 0.5
+        self.show_rays_btn.is_on = False
+        self.show_rays_btn.text = "Show Rays"
+        self.show_raycasted_pcd_btn.is_on = False
+        self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
+        self.rgn6_radius_text.text_value = "300"
+        self.show_shadow_casting_btn.is_on = False
+        self.show_shadow_casting_btn.text = "Show Shadow Casting"
+        self.rgn7_show_source_pcd_chk_box.checked = False
+        self.rgn7_show_target_pcd_chk_box.checked = False
+        self.rgn7_show_recostructed_surface_chk_box.checked = False
+        self.rgn7_show_reconst_density_mesh_chk_box.checked = False
+        self.rgn7_show_filtered_density_mesh_chk_box.checked = False
+        self.rgn7_show_directed_rays_chk_box.checked = False
+        self.rgn7_show_raycasted_source_pcd_chk_box.checked = False
+        self.rgn7_show_casted_shadow_chk_box.checked = False
+        self.rgn8_save_final_merged_pcd_text.text_value = "final_merged_pcd.ply"
+
+
+
+
+
     def _on_mouse_widget3d(self, event):
         print("Mouse event")
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
