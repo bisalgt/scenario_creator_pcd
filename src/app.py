@@ -1,8 +1,12 @@
+import os
+
 import copy
 
 import math
 
 import numpy as np
+
+import pandas as pd
 
 import open3d as o3d
 
@@ -38,6 +42,14 @@ class ScenarioCreatorApp:
         self.final_merged_cloud_after_shadow_casting = None
         self.shadowed_cloud = None
         self.shadowed_cloud_indices = None
+        self.surface_variation = None
+        self.planarity = None
+        self.linearity = None
+        self.z_value = None
+        self.selected_pcd_roi_boundary_indices = []
+        self.source_scene_cloud = None
+        self.source_scene_object_of_interest_indices = None
+            
 
 
 
@@ -76,29 +88,205 @@ class ScenarioCreatorApp:
         rgn1_horiz_row_grid_spacing = 0.1 * self.em
         rgn1_horiz_row_grid_margin = gui.Margins(0.3*self.em, 0*self.em, 0.3*self.em, 0*self.em)
 
-        self.rgn1_horiz_row_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
-        self.rgn1_horiz_row_1_grid.preferred_height = 2 * self.em
-        self.source_pcd_label = gui.Label("Source PCD Filename: ")
-        self.source_pcd_text = gui.TextEdit()
-        self.source_pcd_text.text_value = "only_person_cloud.ply"
+        self.rgn1_horiz_row_1_grid = gui.CollapsableVert("Load Source Cloud")
 
-        self.rgn1_horiz_row_1_grid.add_stretch()
-        self.rgn1_horiz_row_1_grid.add_child(self.source_pcd_label)
-        self.rgn1_horiz_row_1_grid.add_child(self.source_pcd_text)
-        self.rgn1_horiz_row_1_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_source_scene_pcd_label = gui.Label("Load Source Scene: ")
+        self.rgn1_source_scene_pcd_text = gui.TextEdit()
+        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_with_semantic_label.csv"  # we will extract source cloud from the source scene cloud
 
-        self.rgn1_horiz_row_2_grid = gui.Horiz()
-        self.rgn1_horiz_row_2_grid.preferred_height = 2 * self.em
-        self.source_pcd_load_btn = gui.Button(f"Load Source Cloud")
-        self.source_pcd_load_btn.set_on_clicked(self._on_source_pcd_load_btn_clicked)
-        self.source_pcd_remove_btn = gui.Button(f"Remove Source Cloud")
-        self.source_pcd_remove_btn.set_on_clicked(self._on_source_pcd_remove_btn_clicked)
+        self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_label)
+        self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_text)
+        self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
 
-        self.rgn1_horiz_row_2_grid.add_stretch()
-        self.rgn1_horiz_row_2_grid.add_child(self.source_pcd_load_btn)
-        self.rgn1_horiz_row_2_grid.add_stretch()
-        self.rgn1_horiz_row_2_grid.add_child(self.source_pcd_remove_btn)
-        self.rgn1_horiz_row_2_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_2_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_2_grid.preferred_height = 2 * self.em
+        self.rgn1_source_scene_pcd_load_btn = gui.Button(f"Load Scene")
+        self.rgn1_source_scene_pcd_load_btn.set_on_clicked(self._on_source_scene_pcd_load_btn_clicked)
+        self.rgn1_source_scene_pcd_remove_btn = gui.Button(f"Remove Scene")
+        self.rgn1_source_scene_pcd_remove_btn.set_on_clicked(self._on_source_scene_pcd_remove_btn_clicked)
+
+        self.rgn1_horiz_row_1__subrow_2_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_2_grid.add_child(self.rgn1_source_scene_pcd_load_btn)
+        self.rgn1_horiz_row_1__subrow_2_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_2_grid.add_child(self.rgn1_source_scene_pcd_remove_btn)
+        self.rgn1_horiz_row_1__subrow_2_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1__subrow_3_grid = gui.CollapsableVert("Parameters for Source Cloud Extraction")
+
+        self.rgn1_horiz_row_1__subrow_3_r1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r1_grid.preferred_height = 2 * self.em
+
+        self.rgn1_use_labels_to_extract_src_pcd_chk_box = gui.Checkbox(f"UseLabelToExtractSourcePCDfromROI")
+        self.rgn1_use_labels_to_extract_src_pcd_chk_box.set_on_checked(self._on_rgn1_use_labels_to_extract_src_pcd_chk_box_checked)
+
+        self.rgn1_horiz_row_1__subrow_3_r1_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r1_grid.add_child(self.rgn1_use_labels_to_extract_src_pcd_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r1_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1__subrow_3_r2_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2_grid.preferred_height = 2 * self.em
+        self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box = gui.Checkbox(f"Use GeometricFeatures to Extract Source")
+        self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box.set_on_checked(self._on_rgn1_use_geometric_features_to_extract_src_pcd_chk_box_checked)
+
+
+        self.rgn1_horiz_row_1__subrow_3_r2_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2_grid.add_child(self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r2_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.preferred_height = 2 * self.em
+        self.rgn1_labels_to_extract_src_pcd_label = gui.Label("Label to Extract on ROI: ")
+        self.rgn1_labels_to_extract_src_pcd_text = gui.TextEdit()
+        self.rgn1_labels_to_extract_src_pcd_text.text_value = "1"  # we will extract source cloud from the source scene cloud
+
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_child(self.rgn1_labels_to_extract_src_pcd_label)
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_child(self.rgn1_labels_to_extract_src_pcd_text)
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_stretch()
+
+        self.rgn1_horiz_row_1__subrow_3_r1a_grid.enabled = False
+        self.rgn1_labels_to_extract_src_pcd_text.enabled = False
+
+
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid = gui.VGrid(1, spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid.preferred_height = 2 * self.em
+
+        self.rgn1_features_to_extract_src_pcd_label = gui.Label("Features to Extract on ROI: ")
+
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid.add_child(self.rgn1_features_to_extract_src_pcd_label)
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid.add_stretch()
+
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.preferred_height = 2 * self.em
+
+        self.rgn1_surface_variation_chk_box = gui.Checkbox(f"Surface Variation")
+        self.rgn1_surface_variation_chk_box.set_on_checked(self._on_rgn1_surface_variation_chk_box_checked)
+
+        self.rgn1_surface_variation_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_surface_variation_threshold_text = gui.TextEdit()
+        self.rgn1_surface_variation_threshold_text.text_value = "0.1"
+
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_threshold_label)
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_threshold_text)
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
+        
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.preferred_height = 2 * self.em
+
+        self.rgn1_planarity_chk_box = gui.Checkbox(f"Planarity")
+        self.rgn1_planarity_chk_box.set_on_checked(self._on_rgn1_planarity_chk_box_checked)
+
+        self.rgn1_planarity_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_planarity_threshold_text = gui.TextEdit()
+        self.rgn1_planarity_threshold_text.text_value = "0.1"
+
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_child(self.rgn1_planarity_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_child(self.rgn1_planarity_threshold_label)
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_child(self.rgn1_planarity_threshold_text)
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_stretch()
+
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.preferred_height = 2 * self.em
+
+        self.rgn1_linearity_chk_box = gui.Checkbox(f"Linearity")
+        self.rgn1_linearity_chk_box.set_on_checked(self._on_rgn1_linearity_chk_box_checked)
+
+        self.rgn1_linearity_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_linearity_threshold_text = gui.TextEdit()
+        self.rgn1_linearity_threshold_text.text_value = "0.1"
+
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_child(self.rgn1_linearity_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_child(self.rgn1_linearity_threshold_label)
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_child(self.rgn1_linearity_threshold_text)
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.preferred_height = 2 * self.em
+
+        self.rgn1_z_value_chk_box = gui.Checkbox(f"Z-Value")
+        self.rgn1_z_value_chk_box.set_on_checked(self._on_rgn1_z_value_chk_box_checked)
+
+        self.rgn1_z_value_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_z_value_threshold_text = gui.TextEdit()
+        self.rgn1_z_value_threshold_text.text_value = "0.1"
+
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_child(self.rgn1_z_value_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_child(self.rgn1_z_value_threshold_label)
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_child(self.rgn1_z_value_threshold_text)
+        self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_stretch()
+
+        
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2aa_grid)
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2ab_grid)
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2ac_grid)
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2ad_grid)
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2ae_grid)
+
+
+        self.rgn1_horiz_row_1__subrow_3_r2a_grid.enabled = False
+        self.rgn1_horiz_row_1__subrow_3_r2aa_grid.enabled = False
+        self.rgn1_horiz_row_1__subrow_3_r2ab_grid.enabled = False
+        self.rgn1_horiz_row_1__subrow_3_r2ac_grid.enabled = False
+        self.rgn1_horiz_row_1__subrow_3_r2ad_grid.enabled = False
+        self.rgn1_surface_variation_chk_box.enabled = False
+        self.rgn1_surface_variation_threshold_text.enabled = False
+        self.rgn1_planarity_chk_box.enabled = False
+        self.rgn1_planarity_threshold_text.enabled = False
+        self.rgn1_linearity_chk_box.enabled = False
+        self.rgn1_linearity_threshold_text.enabled = False
+        self.rgn1_z_value_chk_box.enabled = False
+        self.rgn1_z_value_threshold_text.enabled = False
+        
+
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r1_grid)
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r1a_grid)
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2_grid)
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2a_grid)
+
+
+        self.rgn1_horiz_row_1__subrow_4_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_4_grid.preferred_height = 2 * self.em
+
+        
+        self.rgn1_extract_src_pcd_btn = gui.Button(f"ShowExtractedResult")
+        self.rgn1_extract_src_pcd_btn.set_on_clicked(self._on_extract_src_pcd_btn_clicked)
+        self.rgn1_extract_src_pcd_btn.toggleable = True
+        self.rgn1_finalize_extracted_src_pcd_btn = gui.Button(f"FinalizeExtractedResult")
+        self.rgn1_finalize_extracted_src_pcd_btn.set_on_clicked(self._on_finalize_extracted_src_pcd_btn_clicked)
+        self.rgn1_finalize_extracted_src_pcd_btn.toggleable = True
+
+
+        self.rgn1_horiz_row_1__subrow_4_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_4_grid.add_child(self.rgn1_extract_src_pcd_btn)
+        self.rgn1_horiz_row_1__subrow_4_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_4_grid.add_child(self.rgn1_finalize_extracted_src_pcd_btn)
+        self.rgn1_horiz_row_1__subrow_4_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1_grid.add_child(self.rgn1_horiz_row_1__subrow_1_grid)
+        self.rgn1_horiz_row_1_grid.add_child(self.rgn1_horiz_row_1__subrow_2_grid)
+        self.rgn1_horiz_row_1_grid.add_child(self.rgn1_horiz_row_1__subrow_3_grid)
+        self.rgn1_horiz_row_1_grid.add_child(self.rgn1_horiz_row_1__subrow_4_grid)
+
+
 
 
         rgn1_horiz_row_grid_margin = gui.Margins(0.3*self.em, 2*self.em, 0.3*self.em, 0*self.em)
@@ -127,7 +315,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_4_grid.add_stretch()
 
         self.rgn1_pcd_load_layout.add_child(self.rgn1_horiz_row_1_grid)
-        self.rgn1_pcd_load_layout.add_child(self.rgn1_horiz_row_2_grid)
+        # self.rgn1_pcd_load_layout.add_child(self.rgn1_horiz_row_2_grid)
         self.rgn1_pcd_load_layout.add_child(self.rgn1_horiz_row_3_grid)
         self.rgn1_pcd_load_layout.add_child(self.rgn1_horiz_row_4_grid)
 
@@ -519,6 +707,115 @@ class ScenarioCreatorApp:
         r = self.window.content_rect
         self.widget3d.frame = r
 
+    def _on_source_scene_pcd_load_btn_clicked(self):
+        print("Source Scene PCD Load Button clicked")
+        if self.rgn1_source_scene_pcd_text.text_value == "":
+            print("Source Scene PCD Text is empty")
+            return
+        if self.rgn1_source_scene_pcd_text.text_value[-4:] != ".csv":
+            print("Source Scene PCD file is not a .csv file. Only CSV file with four columns (x, y, z, label) is supported")
+            return
+        if not os.path.exists(self.rgn1_source_scene_pcd_text.text_value):
+            print("Source Scene PCD file doesnot exist")
+            return
+        try:
+            df_source_scene = pd.read_csv(self.rgn1_source_scene_pcd_text.text_value, sep=",", names=["x", "y", "z", "label"], skiprows=1)
+        except Exception as e:
+            print("Error in reading the Source Scene PCD file : ", e)
+            print("Source Scene PCD file should be a CSV file with four columns (x, y, z, label)")
+            return
+        self.source_scene_cloud = o3d.geometry.PointCloud()
+        ar = df_source_scene[["x", "y", "z"]].to_numpy()
+        print(ar)
+        print(ar.shape)
+        self.source_scene_cloud.points = o3d.utility.Vector3dVector(df_source_scene[["x", "y", "z"]].to_numpy())
+        num_points = len(self.source_scene_cloud.points)
+        labels = df_source_scene["label"].to_numpy()
+        colors = np.zeros((num_points, 3))
+        # make all points green
+        colors[:, 1] = 1.0
+        # Color the points whose labels are not 0 as black. 0 labels for stationery object achieved from carla
+        self.source_scene_object_of_interest_indices = np.where(labels != 0)[0] # indices of the points whose labels are not 0, i.e. person or other non-stationary objects
+        colors[self.source_scene_object_of_interest_indices] = [0, 0, 0]
+        self.source_scene_cloud.colors = o3d.utility.Vector3dVector(colors)
+        self.widget3d.scene.scene.add_geometry("source_scene_cloud", self.source_scene_cloud, self.mat)
+        self.widget3d.force_redraw()
+
+    def _on_source_scene_pcd_remove_btn_clicked(self):
+        print("Source Scene PCD Remove Button clicked")
+        self.source_scene_cloud = None
+        self.widget3d.scene.scene.remove_geometry("source_scene_cloud")
+        # reset indices
+        self.source_scene_object_of_interest_indices = None
+        self.selected_pcd_indices = None
+        self.selected_pcd_roi_boundary_indices = []
+        self.widget3d.force_redraw()
+    
+    def _on_rgn1_use_labels_to_extract_src_pcd_chk_box_checked(self, checked):
+        print("Use Labels to Extract Source PCD Chk Box checked : ", checked)
+        if checked:
+            self.rgn1_horiz_row_1__subrow_3_r1a_grid.enabled = True
+            self.rgn1_labels_to_extract_src_pcd_text.enabled = True
+
+        else:
+            self.rgn1_horiz_row_1__subrow_3_r1a_grid.enabled = False
+            self.rgn1_labels_to_extract_src_pcd_text.enabled = False
+
+
+    def _on_rgn1_use_geometric_features_to_extract_src_pcd_chk_box_checked(self, checked):
+        print("Use Geometric Features to Extract Source PCD Chk Box checked : ", checked)
+        if checked:
+            self.rgn1_horiz_row_1__subrow_3_r2a_grid.enabled = True
+            self.rgn1_horiz_row_1__subrow_3_r2aa_grid.enabled = True
+            self.rgn1_horiz_row_1__subrow_3_r2ab_grid.enabled = True
+            self.rgn1_horiz_row_1__subrow_3_r2ac_grid.enabled = True
+            self.rgn1_horiz_row_1__subrow_3_r2ad_grid.enabled = True
+            self.rgn1_surface_variation_chk_box.enabled = True
+            self.rgn1_surface_variation_threshold_text.enabled = True
+            self.rgn1_planarity_chk_box.enabled = True
+            self.rgn1_planarity_threshold_text.enabled = True
+            self.rgn1_linearity_chk_box.enabled = True
+            self.rgn1_linearity_threshold_text.enabled = True
+            self.rgn1_z_value_chk_box.enabled = True
+            self.rgn1_z_value_threshold_text.enabled = True
+
+        else:
+            self.rgn1_horiz_row_1__subrow_3_r2a_grid.enabled = False
+            self.rgn1_horiz_row_1__subrow_3_r2aa_grid.enabled = False
+            self.rgn1_horiz_row_1__subrow_3_r2ab_grid.enabled = False
+            self.rgn1_horiz_row_1__subrow_3_r2ac_grid.enabled = False
+            self.rgn1_horiz_row_1__subrow_3_r2ad_grid.enabled = False
+            self.rgn1_surface_variation_chk_box.enabled = False
+            self.rgn1_surface_variation_threshold_text.enabled = False
+            self.rgn1_planarity_chk_box.enabled = False
+            self.rgn1_planarity_threshold_text.enabled = False
+            self.rgn1_linearity_chk_box.enabled = False
+            self.rgn1_linearity_threshold_text.enabled = False
+            self.rgn1_z_value_chk_box.enabled = False
+            self.rgn1_z_value_threshold_text.enabled = False
+
+
+
+
+
+    def _on_rgn1_surface_variation_chk_box_checked(self, checked):
+        print("Surface Variation Chk Box checked : ", checked)
+    
+    def _on_rgn1_planarity_chk_box_checked(self, checked):
+        print("Planarity Chk Box checked : ", checked)
+
+    def _on_rgn1_linearity_chk_box_checked(self, checked): 
+        print("Linearity Chk Box checked : ", checked)
+    
+    def _on_rgn1_z_value_chk_box_checked(self, checked):
+        print("Z Value Chk Box checked : ", checked)
+
+    def _on_extract_src_pcd_btn_clicked(self):
+        print("Extract Source PCD Button clicked")
+
+    def _on_finalize_extracted_src_pcd_btn_clicked(self):
+        print("Finalize Extracted Source PCD Button clicked")
+
 
     def _on_source_pcd_load_btn_clicked(self):
         print("Source PCD Load Button clicked")        
@@ -561,43 +858,79 @@ class ScenarioCreatorApp:
     def _on_roi_select_boundary_chk_box_clicked(self, checked):
         print("ROI Select Boundary Chk Box clicked : ", checked)
     
-    @check_if_pcd_is_loaded
+    # @check_if_pcd_is_loaded
     def _on_roi_select_rect_regn_btn_clicked(self):  # Maybe later it could be dynamic for both clouds
         print("ROI Select Rectangular Region Button clicked")
+        
         # Convert the point cloud to a numpy array
-        points = np.asarray(self.target_cloud.points)
-        colors = np.asarray(self.target_cloud.colors)
+        if self.source_scene_cloud is not None:
+            cloud_to_operate = self.source_scene_cloud
+            geometry_name = "source_scene_cloud"
+        elif self.target_cloud is not None:
+            cloud_to_operate = self.target_cloud
+            geometry_name = "target_cloud"
+        else:
+            print("No source scene cloud or target cloud is loaded")
+            return
+
+        if len(self.selected_pcd_roi_boundary_indices) < 2:
+            print("Select at least two points to form a rectangular region")
+            return
+
+        points = np.asarray(cloud_to_operate.points)
+        colors = np.asarray(cloud_to_operate.colors)
         # Extract the red points
-        red_points = points[(colors[:, 0] > 0.9) & (colors[:, 1] < 0.1) & (colors[:, 2] < 0.1)]
-        if len(red_points) == 0:
+        # red_points = points[(colors[:, 0] > 0.9) & (colors[:, 1] < 0.1) & (colors[:, 2] < 0.1)]
+        selected_points = points[np.asarray(self.selected_pcd_roi_boundary_indices)]
+        if len(selected_points) == 0:
             print("No red points found")
             return
         # Compute the 2D bounding box of the red points in the XY plane
-        min_xy = np.min(red_points[:, :2], axis=0)
-        max_xy = np.max(red_points[:, :2], axis=0)
+        min_xy = np.min(selected_points[:, :2], axis=0)
+        max_xy = np.max(selected_points[:, :2], axis=0)
         # Select all points indices that fall within this bounding box
         selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
+        print(selected_indices)
+        selected_indices[self.source_scene_object_of_interest_indices] = False
         self.selected_pcd_indices = selected_indices # used later for selection of a part of pcd for effective processing
         colors[selected_indices] = [1, 0, 0]  # Change to red
-        self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
-        if self.widget3d.scene.scene.has_geometry("target_cloud"):
+        cloud_to_operate.colors = o3d.utility.Vector3dVector(colors)
+        if self.widget3d.scene.scene.has_geometry(geometry_name):
             print("Updating the geometry")
-            self.widget3d.scene.scene.remove_geometry("target_cloud")
-        self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
+            self.widget3d.scene.scene.remove_geometry(geometry_name)
+        self.widget3d.scene.scene.add_geometry(geometry_name, cloud_to_operate, self.mat)
         self.widget3d.force_redraw()
     
-    @check_if_pcd_is_loaded
+    # @check_if_pcd_is_loaded
     def _on_roi_reset_btn_clicked(self):
         print("ROI Reset Button clicked")
+        if self.source_scene_cloud is not None:
+            cloud_to_operate = self.source_scene_cloud
+            geometry_name = "source_scene_cloud"
+
+            # print(dir(self.source_scene_cloud.colors))
+            # print(self.source_scene_cloud.colors)
+        elif self.target_cloud is not None:
+            cloud_to_operate = self.target_cloud
+            geometry_name = "target_cloud"
+        else:
+            print("No source scene cloud or target cloud is loaded")
+            return
         self.selected_pcd_indices = None
-        self.widget3d.scene.scene.remove_geometry("target_cloud")
+        self.selected_pcd_roi_boundary_indices = []
+        self.widget3d.scene.scene.remove_geometry(geometry_name)
         # Reset the color of the target cloud to green
-        num_points = len(self.target_cloud.points)
-        colors = np.zeros((num_points, 3))
-        colors[:,1] = 1 # set all points to green
-        self.target_cloud.colors = o3d.utility.Vector3dVector(colors)
+        num_points = len(cloud_to_operate.points)
+        cloud_to_operate_colors = np.asarray(cloud_to_operate.colors)
+
+        red_indices = np.all(cloud_to_operate_colors == [1, 0, 0], axis=1)
+        cloud_to_operate_colors[red_indices] = [0, 1, 0]
+
+        # colors = np.zeros((num_points, 3))
+        # colors[:,1] = 1 # set all points to green
+        cloud_to_operate.colors = o3d.utility.Vector3dVector(cloud_to_operate_colors)
         # Add the target cloud again
-        self.widget3d.scene.scene.add_geometry("target_cloud", self.target_cloud, self.mat)
+        self.widget3d.scene.scene.add_geometry(geometry_name, cloud_to_operate, self.mat)
 
     @check_if_pcd_is_loaded
     def _calculate_centroid_of_roi(self):
@@ -1024,6 +1357,7 @@ class ScenarioCreatorApp:
     
     def _on_rgn8_save_final_merged_pcd_btn_clicked(self):
         print("Save Final Merged PCD Button clicked")
+        # o3d.io.write_point_cloud("source_scene_with_colors_test.ply", self.source_scene_cloud)
         if self.final_merged_cloud_after_shadow_cast is None:
             print("Final Merged PCD is not available to save")
             return
@@ -1118,10 +1452,16 @@ class ScenarioCreatorApp:
 
 
     def _on_mouse_widget3d(self, event):
+        """
+        Selects a region of interest on the target point cloud or source scene point cloud (complete source scene).
+
+        CTRL/CMD + roi_select_boundary_chk_box
+        The selected region will be color in red. The red color will be used later to select the rectangular region of interest.
+        """
         print("Mouse event")
         if  event.is_modifier_down(gui.KeyModifier.CTRL):
             if self.roi_select_boundary_chk_box.checked:
-                if not self._is_pcd_loaded():
+                if self.target_cloud is None and self.source_scene_cloud is None:
                     return gui.Widget.EventCallbackResult.IGNORED
                 print("CTRL/CMD + Mouse DOWN BTN Clicked")
                 print(event.x, event.y) # prints the mouse position. 0,0 is the top left corner of the window
@@ -1139,15 +1479,28 @@ class ScenarioCreatorApp:
                                 self.widget3d.frame.height)
                         text = "({:.3f}, {:.3f}, {:.3f})".format(
                             world[0], world[1], world[2])
-                        distances = np.sum((self.target_cloud.points - world) ** 2, axis=1)
+                        if self.source_scene_cloud is not None:
+                            cloud_to_operate = self.source_scene_cloud
+                            geometry_name = "source_scene_cloud"
+                        elif self.target_cloud is not None:
+                            cloud_to_operate = self.target_cloud
+                            geometry_name = "target_cloud"
+                        else:
+                            return gui.Widget.EventCallbackResult.IGNORED
+                        distances = np.sum((cloud_to_operate.points - world) ** 2, axis=1)
                         nearest_point_index = np.argmin(distances)
                         print("Nearest Point Index: ", nearest_point_index)
-                        self.target_cloud.colors[nearest_point_index] = [1, 0, 0]  # Change to red                        
-                        cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(self.target_cloud)
-                        if self.widget3d.scene.scene.has_geometry("target_cloud"):
+                        print("Nearest Point: ", cloud_to_operate.points[nearest_point_index])
+                        print("Nearest Point Color: ", cloud_to_operate.colors[nearest_point_index])
+                        print(dir(cloud_to_operate.colors))
+                        if np.array_equal(cloud_to_operate.colors[nearest_point_index],[0, 1, 0]): # if the point is green
+                            cloud_to_operate.colors[nearest_point_index] = [1, 0, 0]  # Change to red                        
+                            self.selected_pcd_roi_boundary_indices.append(nearest_point_index)
+                        cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(cloud_to_operate)
+                        if self.widget3d.scene.scene.has_geometry(geometry_name):
                             print("Updating the geometry")
-                            self.widget3d.scene.scene.remove_geometry("target_cloud")
-                        self.widget3d.scene.scene.add_geometry("target_cloud", cloud_tensor, self.mat)
+                            self.widget3d.scene.scene.remove_geometry(geometry_name)
+                        self.widget3d.scene.scene.add_geometry(geometry_name, cloud_tensor, self.mat)
                         self.widget3d.force_redraw()
                 self.widget3d.scene.scene.render_to_depth_image(depth_callback)
                 return gui.Widget.EventCallbackResult.HANDLED
