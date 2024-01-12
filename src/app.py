@@ -49,6 +49,10 @@ class ScenarioCreatorApp:
         self.selected_pcd_roi_boundary_indices = []
         self.source_scene_cloud = None
         self.source_scene_object_of_interest_indices = None
+        self.selected_pcd_indices_with_obj_indices = None
+        self.object_of_interest_color = [0,0,0]
+        self.roi_color = [1,0,0]
+        self.surrounding_color = [0,1,0]
             
 
 
@@ -142,7 +146,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_3_r1a_grid.preferred_height = 2 * self.em
         self.rgn1_labels_to_extract_src_pcd_label = gui.Label("Label to Extract on ROI: ")
         self.rgn1_labels_to_extract_src_pcd_text = gui.TextEdit()
-        self.rgn1_labels_to_extract_src_pcd_text.text_value = "1"  # we will extract source cloud from the source scene cloud
+        self.rgn1_labels_to_extract_src_pcd_text.text_value = "580"  # we will extract source cloud from the source scene cloud
 
         self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r1a_grid.add_child(self.rgn1_labels_to_extract_src_pcd_label)
@@ -730,12 +734,12 @@ class ScenarioCreatorApp:
         print(ar.shape)
         self.source_scene_cloud.points = o3d.utility.Vector3dVector(df_source_scene[["x", "y", "z"]].to_numpy())
         num_points = len(self.source_scene_cloud.points)
-        labels = df_source_scene["label"].to_numpy()
+        self.source_scene_labels = df_source_scene["label"].to_numpy()
         colors = np.zeros((num_points, 3))
         # make all points green
         colors[:, 1] = 1.0
         # Color the points whose labels are not 0 as black. 0 labels for stationery object achieved from carla
-        self.source_scene_object_of_interest_indices = np.where(labels != 0)[0] # indices of the points whose labels are not 0, i.e. person or other non-stationary objects
+        self.source_scene_object_of_interest_indices = np.where(self.source_scene_labels != 0)[0] # indices of the points whose labels are not 0, i.e. person or other non-stationary objects
         colors[self.source_scene_object_of_interest_indices] = [0, 0, 0]
         self.source_scene_cloud.colors = o3d.utility.Vector3dVector(colors)
         self.widget3d.scene.scene.add_geometry("source_scene_cloud", self.source_scene_cloud, self.mat)
@@ -812,6 +816,40 @@ class ScenarioCreatorApp:
 
     def _on_extract_src_pcd_btn_clicked(self):
         print("Extract Source PCD Button clicked")
+        if self.source_scene_cloud is None:
+            self.rgn1_extract_src_pcd_btn.is_on = False
+            self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+            print("Source Scene PCD is not loaded")
+            return
+        if not self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
+            self.rgn1_extract_src_pcd_btn.is_on = False
+            self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+            print("Please check the checkbox of selecting by labels")
+            print("For now we only check with labels to extract source pcd. ")
+            return
+        if self.rgn1_extract_src_pcd_btn.is_on:
+            print("Extract Source PCD Button is already on")
+            self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
+            indx_to_filter = int(self.rgn1_labels_to_extract_src_pcd_text.text_value)
+            labels_roi_array = self.source_scene_labels[self.selected_pcd_indices_with_obj_indices]
+
+            filtered_roi_indices = np.where(labels_roi_array == indx_to_filter)[0]
+
+            roi_source_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
+            self.source_cloud = roi_source_cloud.select_by_index(filtered_roi_indices)
+            # source_cloud_indices = np.where((np.asarray(roi_source_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
+            # self.source_cloud = roi_source_cloud.select_by_index(source_cloud_indices)
+            if self.widget3d.scene.scene.has_geometry("source_scene_cloud"):
+                print("Updating the geometry")
+                self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=False)
+            self.widget3d.scene.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
+            self.widget3d.force_redraw()
+        else:
+            self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+            self.source_cloud = None
+            self.widget3d.scene.scene.remove_geometry("source_cloud")
+            self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=True)
+            self.widget3d.force_redraw()
 
     def _on_finalize_extracted_src_pcd_btn_clicked(self):
         print("Finalize Extracted Source PCD Button clicked")
@@ -891,6 +929,7 @@ class ScenarioCreatorApp:
         # Select all points indices that fall within this bounding box
         selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
         print(selected_indices)
+        self.selected_pcd_indices_with_obj_indices = np.where(selected_indices)[0]
         selected_indices[self.source_scene_object_of_interest_indices] = False
         self.selected_pcd_indices = selected_indices # used later for selection of a part of pcd for effective processing
         colors[selected_indices] = [1, 0, 0]  # Change to red
