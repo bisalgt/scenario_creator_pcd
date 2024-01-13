@@ -545,8 +545,13 @@ class ScenarioCreatorApp:
         self.show_shadow_casting_btn.toggleable = True
         self.show_shadow_casting_btn.set_on_clicked(self._on_show_shadow_casting_btn_clicked)
 
+        self.finalize_shadow_casting_btn = gui.Button(f"FinalizeShadowCasting")
+        self.finalize_shadow_casting_btn.set_on_clicked(self._on_finalize_shadow_casting_btn_clicked)
+
         self.rgn6_horiz_row_2_grid.add_stretch()
         self.rgn6_horiz_row_2_grid.add_child(self.show_shadow_casting_btn)
+        self.rgn6_horiz_row_2_grid.add_stretch()
+        self.rgn6_horiz_row_2_grid.add_child(self.finalize_shadow_casting_btn)
         self.rgn6_horiz_row_2_grid.add_stretch()
 
 
@@ -1340,6 +1345,33 @@ class ScenarioCreatorApp:
         
         self.widget3d.force_redraw()
 
+    @check_if_pcd_is_loaded
+    def _on_finalize_shadow_casting_btn_clicked(self):
+        print("Finalize Shadow Casting Button clicked")
+        self.show_shadow_casting_btn.is_on = False
+        self.show_shadow_casting_btn.text = "Show Shadow"
+        final_cloud = self.final_merged_cloud_after_shadow_cast.to_legacy()
+        o3d.io.write_point_cloud("final_cloud_1.ply", final_cloud)
+        original_src_pcd_indices_to_remove = np.where((np.asarray(final_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
+        self.final_cloud = final_cloud.select_by_index(original_src_pcd_indices_to_remove, invert=True)
+        o3d.io.write_point_cloud("final_cloud_2.ply", self.final_cloud)
+
+
+        if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
+            self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
+        self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_cloud, self.mat)
+
+        self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
+        self.widget3d.scene.scene.show_geometry("source_cloud", show=False)
+        self.widget3d.scene.scene.show_geometry("final_merged_cloud_after_shadow_cast", show=True)
+        self.widget3d.scene.scene.show_geometry("raycasted_source_cloud", show=False)
+        self.widget3d.scene.scene.show_geometry("directed_rays", show=False)
+        self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_filtered_densities_mesh", show=False)
+        self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_densities_with_color", show=False)
+        self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh", show=False)
+        self.widget3d.force_redraw()
+
+        
 
     def _on_rgn7_show_source_pcd_chk_box_clicked(self, checked):
         print("Show Source PCD Chk Box clicked : ", checked)
