@@ -17,6 +17,9 @@ import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 
 
+from surface_variation import PointCloudAnalysis
+
+
 
 class ScenarioCreatorApp:
 
@@ -175,9 +178,12 @@ class ScenarioCreatorApp:
         self.rgn1_surface_variation_chk_box = gui.Checkbox(f"Surface Variation")
         self.rgn1_surface_variation_chk_box.set_on_checked(self._on_rgn1_surface_variation_chk_box_checked)
 
-        self.rgn1_surface_variation_threshold_label = gui.Label("Threshold : ")
+        # Mininum Threshold = Minimum Possible Value. Anything above or equal the value will be considered
+        # Maximum Threshold = Maximum Possible Value. Anything below or equal the value will be considered
+
+        self.rgn1_surface_variation_threshold_label = gui.Label("MinThres[0-1]: ")
         self.rgn1_surface_variation_threshold_text = gui.TextEdit()
-        self.rgn1_surface_variation_threshold_text.text_value = "0.1"
+        self.rgn1_surface_variation_threshold_text.text_value = "0.03" # This value was giving better results with nn= 30, for the taken dataset to extract person. Need to remove the ground plane also.
 
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_chk_box)
@@ -192,7 +198,7 @@ class ScenarioCreatorApp:
         self.rgn1_planarity_chk_box = gui.Checkbox(f"Planarity")
         self.rgn1_planarity_chk_box.set_on_checked(self._on_rgn1_planarity_chk_box_checked)
 
-        self.rgn1_planarity_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_planarity_threshold_label = gui.Label("MaxThres[0-1]: ")
         self.rgn1_planarity_threshold_text = gui.TextEdit()
         self.rgn1_planarity_threshold_text.text_value = "0.1"
 
@@ -209,7 +215,7 @@ class ScenarioCreatorApp:
         self.rgn1_linearity_chk_box = gui.Checkbox(f"Linearity")
         self.rgn1_linearity_chk_box.set_on_checked(self._on_rgn1_linearity_chk_box_checked)
 
-        self.rgn1_linearity_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_linearity_threshold_label = gui.Label("MaxThres[0-1]: ")
         self.rgn1_linearity_threshold_text = gui.TextEdit()
         self.rgn1_linearity_threshold_text.text_value = "0.1"
 
@@ -227,9 +233,9 @@ class ScenarioCreatorApp:
         self.rgn1_z_value_chk_box = gui.Checkbox(f"Z-Value")
         self.rgn1_z_value_chk_box.set_on_checked(self._on_rgn1_z_value_chk_box_checked)
 
-        self.rgn1_z_value_threshold_label = gui.Label("Threshold : ")
+        self.rgn1_z_value_threshold_label = gui.Label("MinThres: ")
         self.rgn1_z_value_threshold_text = gui.TextEdit()
-        self.rgn1_z_value_threshold_text.text_value = "0.1"
+        self.rgn1_z_value_threshold_text.text_value = "-2.4"
 
         self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ae_grid.add_child(self.rgn1_z_value_chk_box)
@@ -882,35 +888,116 @@ class ScenarioCreatorApp:
             self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
             print("Source Scene PCD is not loaded")
             return
-        if not self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
-            self.rgn1_extract_src_pcd_btn.is_on = False
-            self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
-            print("Please check the checkbox of selecting by labels")
-            print("For now we only check with labels to extract source pcd. ")
-            return
+        # if not self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
+            
+        #     print("Please check the checkbox of selecting by labels")
+        #     print("For now we only check with labels to extract source pcd. ")
+        #     return
         if self.rgn1_extract_src_pcd_btn.is_on:
-            print("Extract Source PCD Button is already on")
             self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
-            indx_to_filter = int(self.rgn1_labels_to_extract_src_pcd_text.text_value)
-            labels_roi_array = self.source_scene_labels[self.selected_pcd_indices_with_obj_indices]
+            if self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
+                # if self.rgn1_extract_src_pcd_btn.is_on:
+                print("Extract Source PCD Button is already on")
+                # self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
+                indx_to_filter = int(self.rgn1_labels_to_extract_src_pcd_text.text_value)
+                labels_roi_array = self.source_scene_labels[self.selected_pcd_indices_with_obj_indices]
 
-            filtered_roi_indices = np.where(labels_roi_array == indx_to_filter)[0]
+                filtered_roi_indices = np.where(labels_roi_array == indx_to_filter)[0]
 
-            roi_source_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
-            self.source_cloud = roi_source_cloud.select_by_index(filtered_roi_indices)
-            # source_cloud_indices = np.where((np.asarray(roi_source_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
-            # self.source_cloud = roi_source_cloud.select_by_index(source_cloud_indices)
-            if self.widget3d.scene.scene.has_geometry("source_scene_cloud"):
+                roi_source_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
+                self.source_cloud = roi_source_cloud.select_by_index(filtered_roi_indices)
+                # source_cloud_indices = np.where((np.asarray(roi_source_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
+                # self.source_cloud = roi_source_cloud.select_by_index(source_cloud_indices)
+                #     if self.widget3d.scene.scene.has_geometry("source_scene_cloud"):
+                #         print("Updating the geometry")
+                #         self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=False)
+                #     self.widget3d.scene.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
+                #     self.widget3d.force_redraw()
+                # else:
+                    # self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                    # self.source_cloud = None
+                    # self.widget3d.scene.scene.remove_geometry("source_cloud")
+                    # self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=True)
+                    # self.widget3d.force_redraw()
+            elif self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box.checked:
+                print("Using Geometric Features to Extract Source PCD")
+                # self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
+                # print(dir(self.source_scene_cloud))
+                roi_source_scene_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
+                search_tree = o3d.geometry.KDTreeSearchParamKNN(40)
+                pcd_obj = PointCloudAnalysis(roi_source_scene_cloud, is_point_type_open3d=True, search_tree=search_tree)
+                normalized_surface_variation = pcd_obj.get_normalized_surface_variation()
+                normalized_planarity = pcd_obj.get_normalized_planarity()
+                normalized_linearity = pcd_obj.get_normalized_linearity()
+                z_values = np.asarray(roi_source_scene_cloud.points)[:, 2]
+                index_array = np.arange(len(z_values))
+                select_row = np.zeros(len(z_values)) # Initially all rows are not selected. All is zeros. The row whose value is one is selected
+                df_roi_source_scene_features = pd.DataFrame({"surface_variation": normalized_surface_variation, "planarity": normalized_planarity, "linearity": normalized_linearity, "z_values": z_values, "index_array": index_array, "select_row": select_row})
+                print(df_roi_source_scene_features.head())
+                print(dir(roi_source_scene_cloud))
+                if self.rgn1_surface_variation_chk_box.checked:
+                    print("Using Surface Variation for filtering PCD")
+                    # for NN = 10, 0.0055 seems to be a better minimum threshold to seperate the person from the selected roi
+                    min_surface_variation_threshold = float(self.rgn1_surface_variation_threshold_text.text_value)
+                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["surface_variation"] >= min_surface_variation_threshold]
+                    df_roi_source_scene_features["select_row"] = 1
+                    print(df_roi_source_scene_features["select_row"].unique())
+                    
+                if self.rgn1_planarity_chk_box.checked:
+                    print("Using Planarity to Extract Source PCD")
+                    max_planarity_threshold = float(self.rgn1_planarity_threshold_text.text_value)
+                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["planarity"] <= max_planarity_threshold]
+                    df_roi_source_scene_features["select_row"] = 1
+                
+                if self.rgn1_linearity_chk_box.checked:
+                    print("Using Linearity to Extract Source PCD")
+                    max_linearity_threshold = float(self.rgn1_linearity_threshold_text.text_value)
+                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["linearity"] <= max_linearity_threshold]
+                    df_roi_source_scene_features["select_row"] = 1
+                
+                if self.rgn1_z_value_chk_box.checked:
+                    print("Using Z Value to Extract Source PCD")
+                    min_z_value_threshold = float(self.rgn1_z_value_threshold_text.text_value)
+                    print(min_z_value_threshold)
+                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["z_values"] >= min_z_value_threshold]
+                    df_roi_source_scene_features["select_row"] = 1
+
+                print("=====================================")
+                print(df_roi_source_scene_features.head())
+                df_roi_source_scene_features.to_csv("df_roi_source_scene_features.csv")
+                selected_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 1]["index_array"].to_numpy()
+                self.source_cloud = roi_source_scene_cloud.select_by_index(selected_indices)
+                print(selected_indices)
+                print(len(selected_indices))
+                if len(selected_indices) == 0:
+                    print("No points are selected. Please check the thresholds")
+                    return
+                print(self.source_cloud)
+                print("=====================================")
+                
+
+
+            else:
+                self.rgn1_extract_src_pcd_btn.is_on = False
+                self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                print("Please check the checkbox of selecting by labels or geometric features")
+                return
+            
+            
+            
+            if self.widget3d.scene.scene.has_geometry("source_scene_cloud") and self.source_cloud is not None:
                 print("Updating the geometry")
                 self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=False)
-            self.widget3d.scene.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
-            self.widget3d.force_redraw()
+                self.widget3d.scene.scene.add_geometry("source_cloud", self.source_cloud, self.mat)
+            
         else:
+            print("Extract Source PCD Button is OFF")
             self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
             self.source_cloud = None
             self.widget3d.scene.scene.remove_geometry("source_cloud")
             self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=True)
-            self.widget3d.force_redraw()
+      
+        self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
 
     def _on_finalize_extracted_src_pcd_btn_clicked(self):
@@ -1597,7 +1684,7 @@ class ScenarioCreatorApp:
 
     def _on_rgn8_reset_all_variables_btn_clicked(self):
         print("Reset All Variables Button clicked")
-
+        
         self.source_cloud = None
         self.target_cloud = None
         self.reconstructed_source_mesh = None
@@ -1622,8 +1709,12 @@ class ScenarioCreatorApp:
         self.selected_pcd_indices = None
         self.raycasted_source_cloud = None
 
+        self.source_scene_cloud = None
+
 
         # open3d gui geometry reset
+        if self.widget3d.scene.scene.has_geometry("source_scene_cloud"):
+            self.widget3d.scene.scene.remove_geometry("source_scene_cloud")
         if self.widget3d.scene.scene.has_geometry("source_cloud"):
             self.widget3d.scene.scene.remove_geometry("source_cloud")
         if self.widget3d.scene.scene.has_geometry("target_cloud"):
