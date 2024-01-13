@@ -1390,23 +1390,40 @@ class ScenarioCreatorApp:
         if self.show_shadow_casting_btn.is_on:
             self.show_shadow_casting_btn.text = "Remove Casted Shadow"
             print("Show Shadow Casting Button is ON")
+
+            self.target_cloud_subset_to_shadow_cast = self.target_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
+            self.target_cloud_subset_not_to_shadow_cast = self.target_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices, invert=True)
+
+
             self._on_roi_reset_btn_clicked()
-            self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
+
+            self.final_merged_cloud_subset_to_shadow_cast = self.target_cloud_subset_to_shadow_cast + self.raycasted_source_cloud
+            # self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
 
             # merged_cloud_original_indices = np.concatenate((np.asarray(self.target_cloud.points), np.asarray(self.raycasted_source_cloud.points)), axis=0)
 
             # Hidden Point Removal Used for Shadowcasting
             diameter = np.linalg.norm(
-                np.asarray(self.final_merged_cloud.get_max_bound()) - np.asarray(self.final_merged_cloud.get_min_bound()))
+                np.asarray(self.final_merged_cloud_subset_to_shadow_cast.get_max_bound()) - np.asarray(self.final_merged_cloud_subset_to_shadow_cast.get_min_bound()))
             print("Define parameters used for hidden_point_removal")
             camera = o3d.core.Tensor([0, 0, 0], o3d.core.float32)
             radius = diameter * int(self.rgn6_radius_text.text_value)
             print("Get all points that are visible from given view point")
-            self.final_merged_cloud = o3d.t.geometry.PointCloud.from_legacy(self.final_merged_cloud)
-            _, self.final_merged_cloud_without_shadow_indices = self.final_merged_cloud.hidden_point_removal(camera, radius)
+            self.final_merged_cloud_subset_to_shadow_cast = o3d.t.geometry.PointCloud.from_legacy(self.final_merged_cloud_subset_to_shadow_cast)
+            _, self.final_merged_cloud_subset_after_shadow_cast_indices = self.final_merged_cloud_subset_to_shadow_cast.hidden_point_removal(camera, radius)
             
-            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud.select_by_index(self.final_merged_cloud_without_shadow_indices)
-            self.shadowed_cloud = self.final_merged_cloud.select_by_index(self.final_merged_cloud_without_shadow_indices, invert=True)
+            self.final_merged_cloud_subset_after_shadow_cast = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices)
+            self.shadowed_cloud = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices, invert=True)
+            print(dir(self.final_merged_cloud_subset_after_shadow_cast))
+            print(type(self.final_merged_cloud_subset_after_shadow_cast))
+            print(dir(self.target_cloud_subset_not_to_shadow_cast))
+            print(type(self.target_cloud_subset_not_to_shadow_cast))
+
+            o3d.io.write_point_cloud("test1.ply", self.final_merged_cloud_subset_after_shadow_cast.to_legacy())
+            o3d.io.write_point_cloud("test2.ply", self.target_cloud_subset_not_to_shadow_cast)
+
+
+            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud_subset_after_shadow_cast + o3d.t.geometry.PointCloud.from_legacy(self.target_cloud_subset_not_to_shadow_cast)
             self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
             self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
         else:
