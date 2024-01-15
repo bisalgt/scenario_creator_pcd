@@ -402,7 +402,7 @@ class ScenarioCreatorApp:
         self.rgn3_horiz_row_2_grid.add_child(self.finalize_transformed_source_pcd_to_target_roi)
         self.rgn3_horiz_row_2_grid.add_stretch()
 
-        self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_1_grid)
+        # self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_1_grid)
         self.rgn3_transform_source_layout.add_child(self.rgn3_horiz_row_2_grid)
 
         self.main_layout.add_child(self.rgn3_transform_source_layout)
@@ -455,11 +455,13 @@ class ScenarioCreatorApp:
 
         self.rgn4_horiz_row_3_grid = gui.Horiz()
         self.rgn4_horiz_row_3_grid.preferred_height = 2 * self.em
+        self.filter_density_label = gui.Label("Filter Density : ")
         self.filter_density_slider = gui.Slider(gui.Slider.DOUBLE)
         self.filter_density_slider.set_limits(0, 1)
         self.filter_density_slider.double_value = 0.5
 
         self.rgn4_horiz_row_3_grid.add_stretch()
+        self.rgn4_horiz_row_3_grid.add_child(self.filter_density_label)
         self.rgn4_horiz_row_3_grid.add_child(self.filter_density_slider)
         self.rgn4_horiz_row_3_grid.add_stretch()
 
@@ -1020,6 +1022,7 @@ class ScenarioCreatorApp:
             return
         print("Finalize Extracted Source PCD Button clicked")
         print("This is irreversible process. If you need to  extract source pcd again, you need to reload the source scene pcd")
+        self._on_calculate_centroid_of_reference_roi_btn_clicked() # calculate the centroid of the reference roi when we finalize the transformation of the source_cloud
         self.source_scene_cloud = None
         self.selected_pcd_roi_boundary_indices = []
         self.selected_pcd_indices_with_obj_indices = None
@@ -1193,7 +1196,7 @@ class ScenarioCreatorApp:
     @check_if_pcd_is_loaded
     def _on_transform_source_pcd_to_target_roi_clicked(self):
         print("Transform Source PCD to Target ROI Button clicked")
-
+        self._on_calculate_centroid_of_target_roi_btn_clicked()
         if self.centroid_of_reference_roi is None or self.centroid_of_target_roi is None:
             self.transform_source_pcd_to_target_roi.is_on = False
             print("Centroids of ROIs are not calculated")
