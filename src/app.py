@@ -906,6 +906,7 @@ class ScenarioCreatorApp:
 
                 roi_source_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
                 self.source_cloud = roi_source_cloud.select_by_index(filtered_roi_indices)
+                self.source_cloud.paint_uniform_color([0, 0, 0])
                 # source_cloud_indices = np.where((np.asarray(roi_source_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
                 # self.source_cloud = roi_source_cloud.select_by_index(source_cloud_indices)
                 #     if self.widget3d.scene.scene.has_geometry("source_scene_cloud"):
@@ -934,6 +935,7 @@ class ScenarioCreatorApp:
                 select_row = np.zeros(len(z_values)) # Initially all rows are not selected. All is zeros. The row whose value is one is selected
                 df_roi_source_scene_features = pd.DataFrame({"surface_variation": normalized_surface_variation, "planarity": normalized_planarity, "linearity": normalized_linearity, "z_values": z_values, "index_array": index_array, "select_row": select_row})
                 print(df_roi_source_scene_features.head())
+                print(df_roi_source_scene_features.describe())
                 print(dir(roi_source_scene_cloud))
                 if self.rgn1_surface_variation_chk_box.checked:
                     print("Using Surface Variation for filtering PCD")
@@ -959,20 +961,28 @@ class ScenarioCreatorApp:
                     print("Using Z Value to Extract Source PCD")
                     min_z_value_threshold = float(self.rgn1_z_value_threshold_text.text_value)
                     print(min_z_value_threshold)
-                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["z_values"] >= min_z_value_threshold]
-                    df_roi_source_scene_features["select_row"] = 1
+                    df_roi_source_scene_features["select_row"] = np.where(df_roi_source_scene_features["z_values"] >= min_z_value_threshold, 1, 0)
+                    # df_roi_source_scene_features["select_row"] = 1
 
                 print("=====================================")
                 print(df_roi_source_scene_features.head())
                 df_roi_source_scene_features.to_csv("df_roi_source_scene_features.csv")
-                selected_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 1]["index_array"].to_numpy()
-                self.source_cloud = roi_source_scene_cloud.select_by_index(selected_indices)
-                print(selected_indices)
-                print(len(selected_indices))
-                if len(selected_indices) == 0:
+                roi_selected_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 1]["index_array"].to_numpy()
+                source_scene_cloud_indices = self.selected_pcd_indices_with_obj_indices[roi_selected_indices]
+                roi_ground_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy()
+                source_scene_roi_ground_indices = self.selected_pcd_indices_with_obj_indices[roi_ground_indices]
+                # self.selected_pcd_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy() # ROI selected indices of ground
+                self.source_cloud = self.source_scene_cloud.select_by_index(source_scene_cloud_indices)
+                self.source_cloud.paint_uniform_color([0, 0, 0])
+                self.selected_pcd_indices = source_scene_roi_ground_indices
+                self.selected_pcd_indices_with_obj_indices = source_scene_roi_ground_indices
+                # print(df_roi_source_scene_features.describe())
+                print(roi_selected_indices)
+                print(len(roi_selected_indices))
+                if len(roi_selected_indices) == 0:
                     print("No points are selected. Please check the thresholds")
                     return
-                print(self.source_cloud)
+                # print(self.source_cloud)
                 print("=====================================")
                 
 
@@ -1076,10 +1086,11 @@ class ScenarioCreatorApp:
         
         # Convert the point cloud to a numpy array
         if self.source_scene_cloud is not None:
-
+            print("Operating on Source Scene Cloud")
             cloud_to_operate = self.source_scene_cloud
             geometry_name = "source_scene_cloud"
         elif self.target_cloud is not None:
+            print("Operating on Target Cloud")
             cloud_to_operate = self.target_cloud
             geometry_name = "target_cloud"
         else:
