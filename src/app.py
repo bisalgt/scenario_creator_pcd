@@ -559,7 +559,7 @@ class ScenarioCreatorApp:
         self.rgn6_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn6_horiz_row_2_grid.preferred_height = 2 * self.em
 
-        self.show_shadow_casting_btn = gui.Button(f"Show Shadow Casting")
+        self.show_shadow_casting_btn = gui.Button(f"ShowShadowCasted")
         self.show_shadow_casting_btn.toggleable = True
         self.show_shadow_casting_btn.set_on_clicked(self._on_show_shadow_casting_btn_clicked)
 
@@ -745,46 +745,63 @@ class ScenarioCreatorApp:
     
 
     def update_show_hide_checkboxes(self):
+        print("update_show_hide_checkboxes")
         if self.widget3d.scene.scene.has_geometry("source_cloud"):
             if self.widget3d.scene.scene.geometry_is_visible("source_cloud"):
                 self.rgn7_show_source_pcd_chk_box.checked = True
             else:
                 self.rgn7_show_source_pcd_chk_box.checked = False
+        else:
+            self.rgn7_show_source_pcd_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("target_cloud"):
             if self.widget3d.scene.scene.geometry_is_visible("target_cloud"):
                 self.rgn7_show_target_pcd_chk_box.checked = True
             else:
                 self.rgn7_show_target_pcd_chk_box.checked = False
+        else:
+            self.rgn7_show_target_pcd_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh"):
             if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh"):
                 self.rgn7_show_recostructed_surface_chk_box.checked = True
             else:
                 self.rgn7_show_recostructed_surface_chk_box.checked = False
+        else:
+            self.rgn7_show_recostructed_surface_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_densities_with_color"):
             if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_densities_with_color"):
                 self.rgn7_show_reconst_density_mesh_chk_box.checked = True
             else:
                 self.rgn7_show_reconst_density_mesh_chk_box.checked = False
+        else:
+            self.rgn7_show_reconst_density_mesh_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("reconstructed_source_mesh_filtered_densities_mesh"):
             if self.widget3d.scene.scene.geometry_is_visible("reconstructed_source_mesh_filtered_densities_mesh"):
                 self.rgn7_show_filtered_density_mesh_chk_box.checked = True
             else:
                 self.rgn7_show_filtered_density_mesh_chk_box.checked = False
+        else:
+            self.rgn7_show_filtered_density_mesh_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("directed_rays"):
             if self.widget3d.scene.scene.geometry_is_visible("directed_rays"):
                 self.rgn7_show_directed_rays_chk_box.checked = True
             else:
                 self.rgn7_show_directed_rays_chk_box.checked = False
+        else:
+            self.rgn7_show_directed_rays_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("raycasted_source_cloud"):
             if self.widget3d.scene.scene.geometry_is_visible("raycasted_source_cloud"):
                 self.rgn7_show_raycasted_source_pcd_chk_box.checked = True
             else:
                 self.rgn7_show_raycasted_source_pcd_chk_box.checked = False
+        else:
+            self.rgn7_show_raycasted_source_pcd_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
             if self.widget3d.scene.scene.geometry_is_visible("final_merged_cloud_after_shadow_cast"):
                 self.rgn7_show_casted_shadow_chk_box.checked = True
             else:
                 self.rgn7_show_casted_shadow_chk_box.checked = False
+        else:
+            self.rgn7_show_casted_shadow_chk_box.checked = False
 
 
             
@@ -927,6 +944,11 @@ class ScenarioCreatorApp:
         #     print("For now we only check with labels to extract source pcd. ")
         #     return
         if self.rgn1_extract_src_pcd_btn.is_on:
+            if  self.selected_pcd_indices_with_obj_indices is None or len(self.selected_pcd_indices_with_obj_indices) == 0:
+                    print("No points are selected to extract object.")
+                    self.rgn1_extract_src_pcd_btn.is_on = False
+                    self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                    return
             self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
             if self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
                 # if self.rgn1_extract_src_pcd_btn.is_on:
@@ -957,6 +979,9 @@ class ScenarioCreatorApp:
                 print("Using Geometric Features to Extract Source PCD")
                 # self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
                 # print(dir(self.source_scene_cloud))
+                if len(self.selected_pcd_indices_with_obj_indices) == 0 or self.selected_pcd_indices_with_obj_indices is None:
+                    print("No points are selected to calculate the geometric features.")
+                    return
                 roi_source_scene_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
                 search_tree = o3d.geometry.KDTreeSearchParamKNN(40)
                 pcd_obj = PointCloudAnalysis(roi_source_scene_cloud, is_point_type_open3d=True, search_tree=search_tree)
@@ -1037,6 +1062,7 @@ class ScenarioCreatorApp:
             print("Extract Source PCD Button is OFF")
             self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
             self.source_cloud = None
+            self._on_roi_select_rect_regn_btn_clicked()
             self.widget3d.scene.scene.remove_geometry("source_cloud")
             self.widget3d.scene.scene.show_geometry("source_scene_cloud", show=True)
       
@@ -1196,6 +1222,11 @@ class ScenarioCreatorApp:
 
     # @check_if_pcd_is_loaded
     def _calculate_centroid_of_roi(self, is_source_scene_cloud=False):
+        print("Calculate Centroid of ROI")
+        print("is_source_scene_cloud : ", is_source_scene_cloud)
+        print(self.source_scene_cloud is None)
+        print(self.target_cloud is None)
+        # print(len(self.selected_pcd_indices))
         if is_source_scene_cloud:
             if self.source_scene_cloud is None:
                 print("Source Scene Cloud is not loaded")
@@ -1294,7 +1325,8 @@ class ScenarioCreatorApp:
 
     @check_if_pcd_is_loaded
     def _on_finalize_transformed_source_pcd_to_target_roi_clicked(self):
-        print("Remove Transform Source PCD to Target ROI Button clicked")
+        print("Finalize Transform Source PCD to Target ROI Button clicked")
+        self.centroid_of_reference_roi = self._calculate_centroid_of_roi()
         self.transform_source_pcd_to_target_roi.is_on = False
         self.transform_source_pcd_to_target_roi.text = "TransformSource"
         self.centroid_of_target_roi = None
@@ -1357,8 +1389,15 @@ class ScenarioCreatorApp:
                     self.reconstructed_source_mesh_filtered_densities_mesh = None
                     print("Done removing filtered density")
 
-        self.widget3d.force_redraw()
+                    if self.widget3d.scene.scene.has_geometry("raycasted_source_cloud"):
+                        self.show_raycasted_pcd_btn.is_on = False
+                        self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
+                        self.widget3d.scene.scene.remove_geometry("raycasted_source_cloud")
+                        self.raycasted_source_cloud = None
+                        print("Done removing raycasted source cloud")
+
         self.update_show_hide_checkboxes()
+        self.widget3d.force_redraw()
 
 
         
@@ -1453,8 +1492,8 @@ class ScenarioCreatorApp:
             self.show_rays_btn.text = "Show Rays"
             self.widget3d.scene.scene.remove_geometry("directed_rays")
             self.line_set = None
-        self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
+        self.widget3d.force_redraw()
 
 
     def _on_show_raycasted_pcd_btn_clicked(self):
@@ -1516,7 +1555,7 @@ class ScenarioCreatorApp:
         print("Show Shadow Casting Button clicked")
         if self.raycasted_source_cloud is None or self.target_cloud is None or self.raycasted_source_cloud is None:
             self.show_shadow_casting_btn.is_on = False
-            self.show_shadow_casting_btn.text = "Show Shadow Casting"
+            self.show_shadow_casting_btn.text = "ShowShadowCasted"
             print("No raycasted source cloud or target cloud")
             return
         if self.show_shadow_casting_btn.is_on:
@@ -1527,9 +1566,9 @@ class ScenarioCreatorApp:
             self.target_cloud_subset_not_to_shadow_cast = self.target_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices, invert=True)
 
 
-            self._on_roi_reset_btn_clicked()
 
             self.final_merged_cloud_subset_to_shadow_cast = self.target_cloud_subset_to_shadow_cast + self.raycasted_source_cloud
+            # self._on_roi_reset_btn_clicked()
             # self.final_merged_cloud = self.target_cloud + self.raycasted_source_cloud
 
             # merged_cloud_original_indices = np.concatenate((np.asarray(self.target_cloud.points), np.asarray(self.raycasted_source_cloud.points)), axis=0)
@@ -1558,6 +1597,7 @@ class ScenarioCreatorApp:
             self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud_subset_after_shadow_cast + o3d.t.geometry.PointCloud.from_legacy(self.target_cloud_subset_not_to_shadow_cast)
             self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
             self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
+            self.update_show_hide_checkboxes()
         else:
             self.show_shadow_casting_btn.text = "Show Shadow"
             print("Show Shadow Casting Button is OFF")
@@ -1814,7 +1854,7 @@ class ScenarioCreatorApp:
         self.show_raycasted_pcd_btn.is_on = False
         self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
         self.show_shadow_casting_btn.is_on = False
-        self.show_shadow_casting_btn.text = "Show Shadow Casting"
+        self.show_shadow_casting_btn.text = "ShowShadowCasted"
 
         self.rgn7_show_source_pcd_chk_box.checked = False
         self.rgn7_show_target_pcd_chk_box.checked = False
@@ -1859,9 +1899,10 @@ class ScenarioCreatorApp:
                     # Note that np.asarray() reverses the axes.
                     depth = np.asarray(depth_image)[y, x]
                     if depth == 1.0:
-                        print("Clicked on nothing")
+                        pass
+                        # print("Clicked on nothing")
                     else:
-                        print("Clicked on something")
+                        # print("Clicked on something")
                         world = self.widget3d.scene.camera.unproject(
                             x, y, depth, self.widget3d.frame.width,
                                 self.widget3d.frame.height)
@@ -1877,16 +1918,16 @@ class ScenarioCreatorApp:
                             return gui.Widget.EventCallbackResult.IGNORED
                         distances = np.sum((cloud_to_operate.points - world) ** 2, axis=1)
                         nearest_point_index = np.argmin(distances)
-                        print("Nearest Point Index: ", nearest_point_index)
-                        print("Nearest Point: ", cloud_to_operate.points[nearest_point_index])
-                        print("Nearest Point Color: ", cloud_to_operate.colors[nearest_point_index])
+                        # print("Nearest Point Index: ", nearest_point_index)
+                        # print("Nearest Point: ", cloud_to_operate.points[nearest_point_index])
+                        # print("Nearest Point Color: ", cloud_to_operate.colors[nearest_point_index])
                         # print(dir(cloud_to_operate.colors))
                         if np.array_equal(cloud_to_operate.colors[nearest_point_index],[0, 1, 0]): # if the point is green
                             cloud_to_operate.colors[nearest_point_index] = [1, 0, 0]  # Change to red                        
                             self.selected_pcd_roi_boundary_indices.append(nearest_point_index)
                         cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(cloud_to_operate)
                         if self.widget3d.scene.scene.has_geometry(geometry_name):
-                            print("Updating the geometry")
+                            # print("Updating the geometry")
                             self.widget3d.scene.scene.remove_geometry(geometry_name)
                         self.widget3d.scene.scene.add_geometry(geometry_name, cloud_tensor, self.mat)
                         self.widget3d.force_redraw()
@@ -1896,10 +1937,10 @@ class ScenarioCreatorApp:
 
     
     def _on_close(self):
-        print("Closing the app")
+        print("Closing the app after resetting all the variables")
         # print(self.__dict__)
         for attr in self.__dict__:
-            print("Setting ", attr, " to None")
+            # print("Setting ", attr, " to None")
             if attr != "window":
                 setattr(self, attr, None)
         return True # return True to allow the window to continue closing
