@@ -25,6 +25,7 @@ class ScenarioCreatorApp:
 
 
     def __init__(self):
+
         
         # region 0: Variables
         # Variables
@@ -67,6 +68,7 @@ class ScenarioCreatorApp:
 
         app = gui.Application.instance
         self.window = app.create_window("Scenario-Creator App", 1024, 768)
+        self.window.set_on_close(self._on_close)
         self.em = self.window.theme.font_size  # Standard Font size of the window (so that UI changes with different OS)
         self.window.set_on_layout(self._on_layout)
         self.widget3d = gui.SceneWidget()
@@ -77,6 +79,7 @@ class ScenarioCreatorApp:
         spacing_betn_items = 10
         margins = gui.Margins(5, 20, 5, 10)
         self.main_layout = gui.CollapsableVert("Main Layout", spacing_betn_items, margins)
+        self.main_layout.set_is_open(False)
         self.main_layout.background_color = gui.Color(0.5, 0.5, 0.5, 0.5)
 
         main_layout_width = 400  # Adjust as needed
@@ -93,10 +96,12 @@ class ScenarioCreatorApp:
 
         self.rgn1_pcd_load_layout = gui.CollapsableVert("Load Point Cloud", spacing_betn_items_in_region,
                                          margins_for_region)
+        self.rgn1_pcd_load_layout.set_is_open(False)
         rgn1_horiz_row_grid_spacing = 0.1 * self.em
-        rgn1_horiz_row_grid_margin = gui.Margins(0.3*self.em, 0*self.em, 0.3*self.em, 0*self.em)
+        rgn1_horiz_row_grid_margin = gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em)
 
         self.rgn1_horiz_row_1_grid = gui.CollapsableVert("Load Source Cloud")
+        self.rgn1_horiz_row_1_grid.set_is_open(False)
 
         self.rgn1_horiz_row_1__subrow_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_source_scene_pcd_label = gui.Label("Load Source Scene: ")
@@ -108,7 +113,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_text)
         self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
 
-        self.rgn1_horiz_row_1__subrow_2_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_2_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn1_horiz_row_1__subrow_2_grid.preferred_height = 2 * self.em
         self.rgn1_source_scene_pcd_load_btn = gui.Button(f"Load Scene")
         self.rgn1_source_scene_pcd_load_btn.set_on_clicked(self._on_source_scene_pcd_load_btn_clicked)
@@ -123,6 +128,7 @@ class ScenarioCreatorApp:
 
 
         self.rgn1_horiz_row_1__subrow_3_grid = gui.CollapsableVert("Parameters for Source Cloud Extraction")
+        self.rgn1_horiz_row_1__subrow_3_grid.set_is_open(False)
 
         self.rgn1_horiz_row_1__subrow_3_r1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_horiz_row_1__subrow_3_r1_grid.preferred_height = 2 * self.em
@@ -312,7 +318,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_3_grid.add_child(self.target_pcd_text)
         self.rgn1_horiz_row_3_grid.add_stretch()
 
-        self.rgn1_horiz_row_4_grid = gui.Horiz()
+        self.rgn1_horiz_row_4_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn1_horiz_row_4_grid.preferred_height = 2 * self.em
         self.target_pcd_load_btn = gui.Button(f"Load Target Cloud")
         self.target_pcd_load_btn.set_on_clicked(self._on_target_pcd_load_btn_clicked)
@@ -338,10 +344,11 @@ class ScenarioCreatorApp:
 
         self.rgn2_roi_select_layout = gui.CollapsableVert("ROI Select", spacing_betn_items_in_region,
                                          margins_for_region)
+        self.rgn2_roi_select_layout.set_is_open(False)
         # rgn2_horiz_row_grid_spacing = 0.1 * self.em
         # rgn2_horiz_row_grid_margin = gui.Margins(0.3*self.em, 0*self.em, 0.3*self.em, 0*self.em)
 
-        self.rgn2_horiz_row_1_grid = gui.Horiz()
+        self.rgn2_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn2_horiz_row_1_grid.preferred_height = 2 * self.em
         self.roi_select_boundary_chk_box = gui.Checkbox(f"Select ROI Boundary")
         self.roi_select_boundary_chk_box.set_on_checked(self._on_roi_select_boundary_chk_box_clicked)
@@ -355,7 +362,7 @@ class ScenarioCreatorApp:
         self.rgn2_horiz_row_1_grid.add_stretch()
 
 
-        self.rgn2_horiz_row_2_grid = gui.Horiz()
+        self.rgn2_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn2_horiz_row_2_grid.preferred_height = 2 * self.em
         self.roi_reset_btn = gui.Button(f"{' '* self.em}   RESET ROI Boundary    {' '* self.em}")
         self.roi_reset_btn.set_on_clicked(self._on_roi_reset_btn_clicked)
@@ -375,9 +382,9 @@ class ScenarioCreatorApp:
         
         self.rgn3_transform_source_layout = gui.CollapsableVert("Transform Source Cloud to Target ROI", spacing_betn_items_in_region,
                                          margins_for_region)
+        self.rgn3_transform_source_layout.set_is_open(False)
 
-
-        self.rgn3_horiz_row_1_grid = gui.Horiz()
+        self.rgn3_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn3_horiz_row_1_grid.preferred_height = 2 * self.em
         self.calculate_centroid_of_reference_roi_btn = gui.Button(f" FindRef.ROICenter ")
         self.calculate_centroid_of_reference_roi_btn.set_on_clicked(self._on_calculate_centroid_of_reference_roi_btn_clicked)
@@ -389,7 +396,7 @@ class ScenarioCreatorApp:
         self.rgn3_horiz_row_1_grid.add_child(self.calculate_centroid_of_target_roi_btn)
         self.rgn3_horiz_row_1_grid.add_stretch()
 
-        self.rgn3_horiz_row_2_grid = gui.Horiz()
+        self.rgn3_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn3_horiz_row_2_grid.preferred_height = 2 * self.em
         self.transform_source_pcd_to_target_roi = gui.Button(f"Transf.SourceCloud")
         self.transform_source_pcd_to_target_roi.set_on_clicked(self._on_transform_source_pcd_to_target_roi_clicked)
@@ -415,8 +422,9 @@ class ScenarioCreatorApp:
         # region 4: Surface Reconstruction
 
         self.rgn4_surface_reconstruct_layout = gui.CollapsableVert("SurfaceReconstruction & Filter by Densities", spacing_betn_items_in_region, margins_for_region)
+        self.rgn4_surface_reconstruct_layout.set_is_open(False)
 
-        self.rgn4_horiz_row_1_grid = gui.Horiz()
+        self.rgn4_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn4_horiz_row_1_grid.preferred_height = 2 * self.em
         self.rgn4_radius_label = gui.Label("  R : ")
         self.rgn4_radius_text = gui.TextEdit()
@@ -439,7 +447,7 @@ class ScenarioCreatorApp:
         self.rgn4_horiz_row_1_grid.add_child(self.rgn4_reconstruct_surf_depth_label)
         self.rgn4_horiz_row_1_grid.add_child(self.rgn4_reconstruct_surf_depth_text)
 
-        self.rgn4_horiz_row_2_grid = gui.Horiz()
+        self.rgn4_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn4_horiz_row_2_grid.preferred_height = 2 * self.em
         self.reconstruct_surface_btn = gui.Button(f"ShowReconstr.Surf.")
         self.reconstruct_surface_btn.toggleable = True
@@ -453,7 +461,7 @@ class ScenarioCreatorApp:
         self.rgn4_horiz_row_2_grid.add_child(self.calculate_density_mesh_btn)
         self.rgn4_horiz_row_2_grid.add_stretch()
 
-        self.rgn4_horiz_row_3_grid = gui.Horiz()
+        self.rgn4_horiz_row_3_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn4_horiz_row_3_grid.preferred_height = 2 * self.em
         self.filter_density_label = gui.Label("Filter Density : ")
         self.filter_density_slider = gui.Slider(gui.Slider.DOUBLE)
@@ -466,7 +474,7 @@ class ScenarioCreatorApp:
         self.rgn4_horiz_row_3_grid.add_stretch()
 
 
-        self.rgn4_horiz_row_4_grid = gui.Horiz()
+        self.rgn4_horiz_row_4_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn4_horiz_row_4_grid.preferred_height = 2 * self.em
         self.filter_density_btn = gui.Button(f"Filter Density Mesh")
         self.filter_density_btn.toggleable = True
@@ -489,8 +497,9 @@ class ScenarioCreatorApp:
 
         # region 5 : Ray Casting and Visualization
         self.rgn5_raycast_layout = gui.CollapsableVert("Raycasting", spacing_betn_items_in_region, margins_for_region)
+        self.rgn5_raycast_layout.set_is_open(False)
 
-        self.rgn5_horiz_row_1_grid = gui.Horiz()
+        self.rgn5_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn5_horiz_row_1_grid.preferred_height = 2 * self.em
 
         self.filter_rays_label = gui.Label("Filter Rays : ")
@@ -505,7 +514,7 @@ class ScenarioCreatorApp:
         self.rgn5_horiz_row_1_grid.add_child(self.filter_rays_slider)
         self.rgn5_horiz_row_1_grid.add_stretch()
 
-        self.rgn5_horiz_row_2_grid = gui.Horiz()
+        self.rgn5_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn5_horiz_row_2_grid.preferred_height = 2 * self.em
         self.show_rays_btn = gui.Button(f"Show Rays")
         self.show_rays_btn.toggleable = True
@@ -534,8 +543,8 @@ class ScenarioCreatorApp:
 
         # region 6 : Shadow Casting
         self.rgn6_shadow_casting_layout = gui.CollapsableVert("Shadow Casting", spacing_betn_items_in_region, margins_for_region)
-
-        self.rgn6_horiz_row_1_grid = gui.Horiz()
+        self.rgn6_shadow_casting_layout.set_is_open(False)
+        self.rgn6_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn6_horiz_row_1_grid.preferred_height = 2 * self.em
         self.rgn6_radius_label = gui.Label("  Radius : ")
         self.rgn6_radius_text = gui.TextEdit()
@@ -547,7 +556,7 @@ class ScenarioCreatorApp:
         self.rgn6_horiz_row_1_grid.add_stretch()
 
 
-        self.rgn6_horiz_row_2_grid = gui.Horiz()
+        self.rgn6_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn6_horiz_row_2_grid.preferred_height = 2 * self.em
 
         self.show_shadow_casting_btn = gui.Button(f"Show Shadow Casting")
@@ -577,67 +586,87 @@ class ScenarioCreatorApp:
         # region 7 : Show/ Hide Visualizations (DONOT Reset any Variables, just remove from the visualization geometry)
 
         self.rgn7_show_hide_layout = gui.CollapsableVert("Show/Hide Visualizations", spacing_betn_items_in_region, margins_for_region)
+        self.rgn7_show_hide_layout.set_is_open(False)
+        # self.rgn7_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+        # self.rgn7_horiz_row_1_grid.preferred_height = 2 * self.em
 
-        self.rgn7_horiz_row_1_grid = gui.Horiz()
-        self.rgn7_horiz_row_1_grid.preferred_height = 2 * self.em
-        self.rgn7_show_source_pcd_chk_box = gui.Checkbox(f"Show Source PCD")
+        
+        self.rgn7_vert_grid_col_1 = gui.Vert(spacing=0.2*self.em, margins=gui.Margins(0.4*self.em, 0.4*self.em, 0.4*self.em, 0.4*self.em))
+        self.rgn7_show_source_pcd_chk_box = gui.Checkbox(f"Source Cloud")
         self.rgn7_show_source_pcd_chk_box.set_on_checked(self._on_rgn7_show_source_pcd_chk_box_clicked)
-        self.rgn7_show_target_pcd_chk_box = gui.Checkbox(f"Show Target PCD")
+        self.rgn7_show_target_pcd_chk_box = gui.Checkbox(f"Target Cloud")
         self.rgn7_show_target_pcd_chk_box.set_on_checked(self._on_rgn7_show_target_pcd_chk_box_clicked)
 
-        self.rgn7_horiz_row_1_grid.add_stretch()
-        self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_source_pcd_chk_box)
-        self.rgn7_horiz_row_1_grid.add_stretch()
-        self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_target_pcd_chk_box)
-        self.rgn7_horiz_row_1_grid.add_stretch()
+        # self.rgn7_horiz_row_1_grid.add_stretch()
+        # self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_source_pcd_chk_box)
+        # self.rgn7_horiz_row_1_grid.add_stretch()
+        # self.rgn7_horiz_row_1_grid.add_child(self.rgn7_show_target_pcd_chk_box)
+        # self.rgn7_horiz_row_1_grid.add_stretch()
 
 
-        self.rgn7_horiz_row_2_grid = gui.Horiz()
-        self.rgn7_horiz_row_2_grid.preferred_height = 2 * self.em
-        self.rgn7_show_recostructed_surface_chk_box = gui.Checkbox(f"Show Reconstruced Surface")
+        # self.rgn7_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+        # self.rgn7_horiz_row_2_grid.preferred_height = 2 * self.em
+        self.rgn7_show_recostructed_surface_chk_box = gui.Checkbox(f"Reconstruced Surface")
         self.rgn7_show_recostructed_surface_chk_box.set_on_checked(self._on_rgn7_show_recostructed_surface_chk_box_clicked)
-        self.rgn7_show_reconst_density_mesh_chk_box = gui.Checkbox(f"Show Filtered Density Mesh")
+        self.rgn7_show_reconst_density_mesh_chk_box = gui.Checkbox(f"Reconstructed Density Mesh")
         self.rgn7_show_reconst_density_mesh_chk_box.set_on_checked(self._on_rgn7_show_reconst_density_mesh_chk_box_clicked)
 
-        self.rgn7_horiz_row_2_grid.add_stretch()
-        self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_recostructed_surface_chk_box)
-        self.rgn7_horiz_row_2_grid.add_stretch()
-        self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_reconst_density_mesh_chk_box)
-        self.rgn7_horiz_row_2_grid.add_stretch()
+        # self.rgn7_horiz_row_2_grid.add_stretch()
+        # self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_recostructed_surface_chk_box)
+        # self.rgn7_horiz_row_2_grid.add_stretch()
+        # self.rgn7_horiz_row_2_grid.add_child(self.rgn7_show_reconst_density_mesh_chk_box)
+        # self.rgn7_horiz_row_2_grid.add_stretch()
+
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_source_pcd_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_target_pcd_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_recostructed_surface_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_reconst_density_mesh_chk_box)
 
 
-        self.rgn7_horiz_row_3_grid = gui.Horiz()
-        self.rgn7_horiz_row_3_grid.preferred_height = 2 * self.em
-        self.rgn7_show_filtered_density_mesh_chk_box = gui.Checkbox(f"Show Filtered Density Mesh")
+        # self.rgn7_horiz_row_3_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+        # self.rgn7_horiz_row_3_grid.preferred_height = 2 * self.em
+
+        # self.rgn7_vert_grid_col_2 = gui.Vert(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+
+
+        self.rgn7_show_filtered_density_mesh_chk_box = gui.Checkbox(f"Filtered Density Mesh")
         self.rgn7_show_filtered_density_mesh_chk_box.set_on_checked(self._on_rgn7_show_filtered_density_mesh_chk_box_clicked)
-        self.rgn7_show_directed_rays_chk_box = gui.Checkbox(f"Show Rays")
+        self.rgn7_show_directed_rays_chk_box = gui.Checkbox(f"Rays")
         self.rgn7_show_directed_rays_chk_box.set_on_checked(self._on_rgn7_show_directed_rays_chk_box_clicked)
 
-        self.rgn7_horiz_row_3_grid.add_stretch()
-        self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_filtered_density_mesh_chk_box)
-        self.rgn7_horiz_row_3_grid.add_stretch()
-        self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_directed_rays_chk_box)
-        self.rgn7_horiz_row_3_grid.add_stretch()
+        # self.rgn7_horiz_row_3_grid.add_stretch()
+        # self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_filtered_density_mesh_chk_box)
+        # self.rgn7_horiz_row_3_grid.add_stretch()
+        # self.rgn7_horiz_row_3_grid.add_child(self.rgn7_show_directed_rays_chk_box)
+        # self.rgn7_horiz_row_3_grid.add_stretch()
         
 
-        self.rgn7_horiz_row_4_grid = gui.Horiz()
-        self.rgn7_horiz_row_4_grid.preferred_height = 2 * self.em
-        self.rgn7_show_raycasted_source_pcd_chk_box = gui.Checkbox(f"Show RayCasted PCD")
+        # self.rgn7_horiz_row_4_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+        # self.rgn7_horiz_row_4_grid.preferred_height = 2 * self.em
+        self.rgn7_show_raycasted_source_pcd_chk_box = gui.Checkbox(f"RayCasted Point Cloud")
         self.rgn7_show_raycasted_source_pcd_chk_box.set_on_checked(self._on_rgn7_show_raycasted_source_pcd_chk_box_clicked)
-        self.rgn7_show_casted_shadow_chk_box = gui.Checkbox(f"Show Final Result")
+        self.rgn7_show_casted_shadow_chk_box = gui.Checkbox(f"Final Shadow Casted Result")
         self.rgn7_show_casted_shadow_chk_box.set_on_checked(self._on_rgn7_show_casted_shadow_chk_box_clicked)
 
-        self.rgn7_horiz_row_4_grid.add_stretch()
-        self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
-        self.rgn7_horiz_row_4_grid.add_stretch()
-        self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_casted_shadow_chk_box)
-        self.rgn7_horiz_row_4_grid.add_stretch()
+        # self.rgn7_horiz_row_4_grid.add_stretch()
+        # self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
+        # self.rgn7_horiz_row_4_grid.add_stretch()
+        # self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_casted_shadow_chk_box)
+        # self.rgn7_horiz_row_4_grid.add_stretch()
+
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_filtered_density_mesh_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_directed_rays_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_casted_shadow_chk_box)
 
 
-        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_1_grid)
-        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_2_grid)
-        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_3_grid)
-        self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_4_grid)
+        # self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_1_grid)
+        # self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_2_grid)
+        # self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_3_grid)
+        # self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_4_grid)
+
+        self.rgn7_show_hide_layout.add_child(self.rgn7_vert_grid_col_1)
+        # self.rgn7_show_hide_layout.add_child(self.rgn7_vert_grid_col_2)
 
         self.main_layout.add_child(self.rgn7_show_hide_layout)
 
@@ -645,9 +674,9 @@ class ScenarioCreatorApp:
         
         # region 8 : Save Final Merged Point Cloud and Reset All Variables
 
-        self.rgn8_save_final_merged_pcd_layout = gui.CollapsableVert("Save Final Merged Point Cloud", spacing_betn_items_in_region, margins_for_region)
-        
-        self.rgn8_horiz_row_1_grid = gui.Horiz()
+        self.rgn8_save_final_merged_pcd_layout = gui.CollapsableVert("Save Final Merged Point Cloud", spacing_betn_items_in_region, gui.Margins(1*self.em, 0.3*self.em, 1*self.em, 2*self.em))
+        self.rgn8_save_final_merged_pcd_layout.set_is_open(False)
+        self.rgn8_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn8_horiz_row_1_grid.preferred_height = 2 * self.em
         self.rgn8_save_final_merged_pcd_label = gui.Label("Filename : ")
         self.rgn8_save_final_merged_pcd_text = gui.TextEdit()
@@ -659,7 +688,7 @@ class ScenarioCreatorApp:
         self.rgn8_horiz_row_1_grid.add_stretch()
 
 
-        self.rgn8_horiz_row_2_grid = gui.Horiz()
+        self.rgn8_horiz_row_2_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn8_horiz_row_2_grid.preferred_height = 2 * self.em
         self.rgn8_save_final_merged_pcd_btn = gui.Button(f"Save Final Merged PCD")
         self.rgn8_save_final_merged_pcd_btn.set_on_clicked(self._on_rgn8_save_final_merged_pcd_btn_clicked)
@@ -677,6 +706,8 @@ class ScenarioCreatorApp:
         self.rgn8_save_final_merged_pcd_layout.add_child(self.rgn8_horiz_row_2_grid)
 
         self.main_layout.add_child(self.rgn8_save_final_merged_pcd_layout)
+
+        self.main_layout.add_child(gui.Label(" "))
 
         # endregion 8
 
@@ -936,9 +967,9 @@ class ScenarioCreatorApp:
                 index_array = np.arange(len(z_values))
                 select_row = np.zeros(len(z_values)) # Initially all rows are not selected. All is zeros. The row whose value is one is selected
                 df_roi_source_scene_features = pd.DataFrame({"surface_variation": normalized_surface_variation, "planarity": normalized_planarity, "linearity": normalized_linearity, "z_values": z_values, "index_array": index_array, "select_row": select_row})
-                print(df_roi_source_scene_features.head())
-                print(df_roi_source_scene_features.describe())
-                print(dir(roi_source_scene_cloud))
+                # print(df_roi_source_scene_features.head())
+                # print(df_roi_source_scene_features.describe())
+                # print(dir(roi_source_scene_cloud))
                 if self.rgn1_surface_variation_chk_box.checked:
                     print("Using Surface Variation for filtering PCD")
                     # for NN = 10, 0.0055 seems to be a better minimum threshold to seperate the person from the selected roi
@@ -1515,10 +1546,10 @@ class ScenarioCreatorApp:
             
             self.final_merged_cloud_subset_after_shadow_cast = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices)
             self.shadowed_cloud = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices, invert=True)
-            print(dir(self.final_merged_cloud_subset_after_shadow_cast))
-            print(type(self.final_merged_cloud_subset_after_shadow_cast))
-            print(dir(self.target_cloud_subset_not_to_shadow_cast))
-            print(type(self.target_cloud_subset_not_to_shadow_cast))
+            # print(dir(self.final_merged_cloud_subset_after_shadow_cast))
+            # print(type(self.final_merged_cloud_subset_after_shadow_cast))
+            # print(dir(self.target_cloud_subset_not_to_shadow_cast))
+            # print(type(self.target_cloud_subset_not_to_shadow_cast))
 
             o3d.io.write_point_cloud("test1.ply", self.final_merged_cloud_subset_after_shadow_cast.to_legacy())
             o3d.io.write_point_cloud("test2.ply", self.target_cloud_subset_not_to_shadow_cast)
@@ -1820,8 +1851,8 @@ class ScenarioCreatorApp:
             if self.roi_select_boundary_chk_box.checked:
                 if self.target_cloud is None and self.source_scene_cloud is None:
                     return gui.Widget.EventCallbackResult.IGNORED
-                print("CTRL/CMD + Mouse DOWN BTN Clicked")
-                print(event.x, event.y) # prints the mouse position. 0,0 is the top left corner of the window
+                # print("CTRL/CMD + Mouse DOWN BTN Clicked")
+                # print(event.x, event.y) # prints the mouse position. 0,0 is the top left corner of the window
                 def depth_callback(depth_image):
                     x = event.x - self.widget3d.frame.x
                     y = event.y - self.widget3d.frame.y
@@ -1849,7 +1880,7 @@ class ScenarioCreatorApp:
                         print("Nearest Point Index: ", nearest_point_index)
                         print("Nearest Point: ", cloud_to_operate.points[nearest_point_index])
                         print("Nearest Point Color: ", cloud_to_operate.colors[nearest_point_index])
-                        print(dir(cloud_to_operate.colors))
+                        # print(dir(cloud_to_operate.colors))
                         if np.array_equal(cloud_to_operate.colors[nearest_point_index],[0, 1, 0]): # if the point is green
                             cloud_to_operate.colors[nearest_point_index] = [1, 0, 0]  # Change to red                        
                             self.selected_pcd_roi_boundary_indices.append(nearest_point_index)
@@ -1862,6 +1893,16 @@ class ScenarioCreatorApp:
                 self.widget3d.scene.scene.render_to_depth_image(depth_callback)
                 return gui.Widget.EventCallbackResult.HANDLED
         return gui.Widget.EventCallbackResult.IGNORED
+
+    
+    def _on_close(self):
+        print("Closing the app")
+        # print(self.__dict__)
+        for attr in self.__dict__:
+            print("Setting ", attr, " to None")
+            if attr != "window":
+                setattr(self, attr, None)
+        return True # return True to allow the window to continue closing
 
 
     # endregion member functions
