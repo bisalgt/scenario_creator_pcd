@@ -4,6 +4,8 @@ import copy
 
 import math
 
+import pickle
+
 import numpy as np
 
 import pandas as pd
@@ -106,7 +108,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_source_scene_pcd_label = gui.Label("Load Source Scene: ")
         self.rgn1_source_scene_pcd_text = gui.TextEdit()
-        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_with_semantic_label.csv"  # we will extract source cloud from the source scene cloud
+        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_without_semantic_label.csv"  # we will extract source cloud from the source scene cloud
 
         self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_label)
@@ -130,6 +132,16 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_3_grid = gui.CollapsableVert("Parameters for Source Cloud Extraction")
         self.rgn1_horiz_row_1__subrow_3_grid.set_is_open(False)
 
+        self.rgn1_horiz_row_1__subrow_3_r0_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r0_grid.preferred_height = 2 * self.em
+
+        self.rgn1_use_ml_model_to_extract_src_pcd_chk_box = gui.Checkbox(f"UseMLToExtractSourcePCDfromROI")
+        self.rgn1_use_ml_model_to_extract_src_pcd_chk_box.set_on_checked(self._on_rgn1_use_ml_model_to_extract_src_pcd_chk_box_checked)
+
+        self.rgn1_horiz_row_1__subrow_3_r0_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r0_grid.add_child(self.rgn1_use_ml_model_to_extract_src_pcd_chk_box)
+        self.rgn1_horiz_row_1__subrow_3_r0_grid.add_stretch()
+
         self.rgn1_horiz_row_1__subrow_3_r1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_horiz_row_1__subrow_3_r1_grid.preferred_height = 2 * self.em
 
@@ -150,6 +162,21 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_3_r2_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2_grid.add_child(self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box)
         self.rgn1_horiz_row_1__subrow_3_r2_grid.add_stretch()
+
+
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.preferred_height = 2 * self.em
+        self.rgn1_ml_model_to_extract_src_pcd_label = gui.Label("Model Filename : ")
+        self.rgn1_ml_model_to_extract_src_pcd_text = gui.TextEdit()
+        self.rgn1_ml_model_to_extract_src_pcd_text.text_value = "trained_model/model_trained_on_features_knn_5.pkl"  # we will extract source cloud from the source scene cloud
+
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.add_stretch()
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.add_child(self.rgn1_ml_model_to_extract_src_pcd_label)
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.add_child(self.rgn1_ml_model_to_extract_src_pcd_text)
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.add_stretch()
+
+        self.rgn1_horiz_row_1__subrow_3_r0a_grid.enabled = False
+        self.rgn1_ml_model_to_extract_src_pcd_text.enabled = False
 
 
         self.rgn1_horiz_row_1__subrow_3_r1a_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
@@ -189,7 +216,7 @@ class ScenarioCreatorApp:
 
         self.rgn1_surface_variation_threshold_label = gui.Label("MinThres[0-1]: ")
         self.rgn1_surface_variation_threshold_text = gui.TextEdit()
-        self.rgn1_surface_variation_threshold_text.text_value = "0.03" # This value was giving better results with nn= 30, for the taken dataset to extract person. Need to remove the ground plane also.
+        self.rgn1_surface_variation_threshold_text.text_value = "0.00001" # This value was giving better results with nn= 30, for the taken dataset to extract person. Need to remove the ground plane also.
 
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_chk_box)
@@ -206,7 +233,7 @@ class ScenarioCreatorApp:
 
         self.rgn1_planarity_threshold_label = gui.Label("MaxThres[0-1]: ")
         self.rgn1_planarity_threshold_text = gui.TextEdit()
-        self.rgn1_planarity_threshold_text.text_value = "0.1"
+        self.rgn1_planarity_threshold_text.text_value = "0.9"
 
         self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ac_grid.add_child(self.rgn1_planarity_chk_box)
@@ -223,7 +250,7 @@ class ScenarioCreatorApp:
 
         self.rgn1_linearity_threshold_label = gui.Label("MaxThres[0-1]: ")
         self.rgn1_linearity_threshold_text = gui.TextEdit()
-        self.rgn1_linearity_threshold_text.text_value = "0.1"
+        self.rgn1_linearity_threshold_text.text_value = "0.9"
 
         self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ad_grid.add_child(self.rgn1_linearity_chk_box)
@@ -273,6 +300,8 @@ class ScenarioCreatorApp:
         self.rgn1_z_value_threshold_text.enabled = False
         
 
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r0_grid)
+        self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r0a_grid)
         self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r1_grid)
         self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r1a_grid)
         self.rgn1_horiz_row_1__subrow_3_grid.add_child(self.rgn1_horiz_row_1__subrow_3_r2_grid)
@@ -871,6 +900,15 @@ class ScenarioCreatorApp:
         self.selected_pcd_indices_with_obj_indices = None
         self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
+
+    def _on_rgn1_use_ml_model_to_extract_src_pcd_chk_box_checked(self, checked):
+        print("Use ML Model to Extract Source PCD Chk Box checked : ", checked)
+        if checked:
+            self.rgn1_horiz_row_1__subrow_3_r0a_grid.enabled = True
+            self.rgn1_ml_model_to_extract_src_pcd_text.enabled = True
+        else:
+            self.rgn1_horiz_row_1__subrow_3_r0a_grid.enabled = False
+            self.rgn1_ml_model_to_extract_src_pcd_text.enabled = False
     
     def _on_rgn1_use_labels_to_extract_src_pcd_chk_box_checked(self, checked):
         print("Use Labels to Extract Source PCD Chk Box checked : ", checked)
@@ -950,7 +988,80 @@ class ScenarioCreatorApp:
                     self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
                     return
             self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
-            if self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
+
+            if self.rgn1_use_ml_model_to_extract_src_pcd_chk_box.checked:
+                print("Using ML Model to Extract Source PCD")
+                model_filename = self.rgn1_ml_model_to_extract_src_pcd_text.text_value
+                if model_filename == "":
+                    print("Model filename is empty")
+                    self.rgn1_extract_src_pcd_btn.is_on = False
+                    self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                    return
+                if not os.path.exists(model_filename):
+                    print("Model file doesnot exist")
+                    self.rgn1_extract_src_pcd_btn.is_on = False
+                    self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                    return
+                if model_filename[-4:] != ".pkl":
+                    print("Model file is not a .pkl file")
+                    self.rgn1_extract_src_pcd_btn.is_on = False
+                    self.rgn1_extract_src_pcd_btn.text = "ExtractSourcePCD"
+                    return
+                # Calculating feature of ROI and Predicting using the pre-trained model
+                roi_source_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
+
+                knn_number = int(self.rgn1_ml_model_to_extract_src_pcd_text.text_value.split("_")[-1].split(".")[0])
+                print("Nearest Neighbour Number : ", knn_number)
+                search_tree = o3d.geometry.KDTreeSearchParamKNN(knn_number)
+                pcd_obj = PointCloudAnalysis(roi_source_cloud, is_point_type_open3d=True, search_tree=search_tree)
+                normalized_surface_variation = pcd_obj.get_normalized_surface_variation()
+                normalized_planarity = pcd_obj.get_normalized_planarity()
+                normalized_linearity = pcd_obj.get_normalized_linearity()
+                df_roi_source_scene_features = pd.DataFrame({"surface_variation": normalized_surface_variation, "planarity": normalized_planarity, "linearity": normalized_linearity})
+                # print(df_roi_source_scene_features.head())
+                # print(df_roi_source_scene_features.describe())
+
+                # Loading the pre-trained model
+                model_filename = self.rgn1_ml_model_to_extract_src_pcd_text.text_value
+                with open(model_filename, "rb") as f:
+                    classifier_model = pickle.load(f)
+                
+                # Predicting the labels
+                X_features = df_roi_source_scene_features[["surface_variation", "planarity", "linearity"]]
+                predicted_labels = classifier_model.predict(X_features)
+
+                # Filtering the ROI based on the predicted labels
+                filtered_roi_indices = np.where(predicted_labels == 1)[0]
+                self.source_cloud = roi_source_cloud.select_by_index(filtered_roi_indices)
+                self.source_cloud.paint_uniform_color([0, 0, 0])
+                roi_ground_indices = np.where(predicted_labels == 0)[0]
+                source_scene_roi_ground_indices = self.selected_pcd_indices_with_obj_indices[roi_ground_indices]
+                self.selected_pcd_indices = source_scene_roi_ground_indices
+                print("===============================================================================")
+                print("Length of selected pcd indices : ", len(self.selected_pcd_indices))
+                # print("Length of roi_ground_indices : ", len(roi_ground_indices))
+                print("Length of filtered_roi_indices : ", len(filtered_roi_indices))
+                print("Length of total indices : ", len(self.selected_pcd_indices_with_obj_indices))
+                print("===============================================================================")
+
+                # ---------------------------------------------------------------------------------------------
+                # roi_selected_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 1]["index_array"].to_numpy()
+                # source_scene_cloud_indices = self.selected_pcd_indices_with_obj_indices[roi_selected_indices]
+                # # print("=====================================")
+                # # print(df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0])
+                # # print("=====================================")
+                # roi_ground_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy()
+                # source_scene_roi_ground_indices = self.selected_pcd_indices_with_obj_indices[roi_ground_indices]
+                # # self.selected_pcd_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy() # ROI selected indices of ground
+                # self.source_cloud = self.source_scene_cloud.select_by_index(source_scene_cloud_indices)
+                # self.source_cloud.paint_uniform_color([0, 0, 0])
+                # self.selected_pcd_indices = source_scene_roi_ground_indices
+                # self.selected_pcd_indices_with_obj_indices = source_scene_roi_ground_indices
+                # ---------------------------------------------------------------------------------------------
+
+                
+
+            elif self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked:
                 # if self.rgn1_extract_src_pcd_btn.is_on:
                 print("Extract Source PCD Button is already on")
                 # self.rgn1_extract_src_pcd_btn.text = "RemoveExtracedSource"
@@ -983,7 +1094,7 @@ class ScenarioCreatorApp:
                     print("No points are selected to calculate the geometric features.")
                     return
                 roi_source_scene_cloud = self.source_scene_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
-                search_tree = o3d.geometry.KDTreeSearchParamKNN(40)
+                search_tree = o3d.geometry.KDTreeSearchParamKNN(5)
                 pcd_obj = PointCloudAnalysis(roi_source_scene_cloud, is_point_type_open3d=True, search_tree=search_tree)
                 normalized_surface_variation = pcd_obj.get_normalized_surface_variation()
                 normalized_planarity = pcd_obj.get_normalized_planarity()
@@ -999,21 +1110,21 @@ class ScenarioCreatorApp:
                     print("Using Surface Variation for filtering PCD")
                     # for NN = 10, 0.0055 seems to be a better minimum threshold to seperate the person from the selected roi
                     min_surface_variation_threshold = float(self.rgn1_surface_variation_threshold_text.text_value)
-                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["surface_variation"] >= min_surface_variation_threshold]
-                    df_roi_source_scene_features["select_row"] = 1
-                    print(df_roi_source_scene_features["select_row"].unique())
+                    # df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["surface_variation"] >= min_surface_variation_threshold]
+                    df_roi_source_scene_features["select_row"] = np.where(df_roi_source_scene_features["surface_variation"] >= min_surface_variation_threshold, 1, 0)
+                    # print(df_roi_source_scene_features["select_row"].unique())
                     
                 if self.rgn1_planarity_chk_box.checked:
                     print("Using Planarity to Extract Source PCD")
                     max_planarity_threshold = float(self.rgn1_planarity_threshold_text.text_value)
-                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["planarity"] <= max_planarity_threshold]
-                    df_roi_source_scene_features["select_row"] = 1
+                    # df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["planarity"] <= max_planarity_threshold]
+                    df_roi_source_scene_features["select_row"] = np.where(df_roi_source_scene_features["planarity"] <= max_planarity_threshold, 1, 0)
                 
                 if self.rgn1_linearity_chk_box.checked:
                     print("Using Linearity to Extract Source PCD")
                     max_linearity_threshold = float(self.rgn1_linearity_threshold_text.text_value)
-                    df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["linearity"] <= max_linearity_threshold]
-                    df_roi_source_scene_features["select_row"] = 1
+                    # df_roi_source_scene_features = df_roi_source_scene_features[df_roi_source_scene_features["linearity"] <= max_linearity_threshold]
+                    df_roi_source_scene_features["select_row"] = np.where(df_roi_source_scene_features["linearity"] <= max_linearity_threshold, 1, 0)
                 
                 if self.rgn1_z_value_chk_box.checked:
                     print("Using Z Value to Extract Source PCD")
@@ -1022,11 +1133,14 @@ class ScenarioCreatorApp:
                     df_roi_source_scene_features["select_row"] = np.where(df_roi_source_scene_features["z_values"] >= min_z_value_threshold, 1, 0)
                     # df_roi_source_scene_features["select_row"] = 1
 
-                print("=====================================")
-                print(df_roi_source_scene_features.head())
-                df_roi_source_scene_features.to_csv("df_roi_source_scene_features.csv")
+                # print("=====================================")
+                # print(df_roi_source_scene_features.head())
+                # df_roi_source_scene_features.to_csv("df_roi_source_scene_features.csv")
                 roi_selected_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 1]["index_array"].to_numpy()
                 source_scene_cloud_indices = self.selected_pcd_indices_with_obj_indices[roi_selected_indices]
+                # print("=====================================")
+                # print(df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0])
+                # print("=====================================")
                 roi_ground_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy()
                 source_scene_roi_ground_indices = self.selected_pcd_indices_with_obj_indices[roi_ground_indices]
                 # self.selected_pcd_indices = df_roi_source_scene_features[df_roi_source_scene_features["select_row"] == 0]["index_array"].to_numpy() # ROI selected indices of ground
@@ -1035,13 +1149,13 @@ class ScenarioCreatorApp:
                 self.selected_pcd_indices = source_scene_roi_ground_indices
                 self.selected_pcd_indices_with_obj_indices = source_scene_roi_ground_indices
                 # print(df_roi_source_scene_features.describe())
-                print(roi_selected_indices)
-                print(len(roi_selected_indices))
+                # print(roi_selected_indices)
+                # print(len(roi_selected_indices))
                 if len(roi_selected_indices) == 0:
                     print("No points are selected. Please check the thresholds")
                     return
                 # print(self.source_cloud)
-                print("=====================================")
+                # print("=====================================")
                 
 
 
@@ -1176,7 +1290,10 @@ class ScenarioCreatorApp:
         selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
         print(selected_indices)
         self.selected_pcd_indices_with_obj_indices = np.where(selected_indices)[0]
-        selected_indices[self.source_scene_object_of_interest_indices] = False
+        if self.source_scene_object_of_interest_indices is not None or len(self.source_scene_object_of_interest_indices) > 0: 
+            selected_indices[self.source_scene_object_of_interest_indices] = False
+        print("Selected Indices from ROI ============= : ", selected_indices)
+        print("length of true values : ", len(np.where(selected_indices)[0]))
         self.selected_pcd_indices = selected_indices # used later for selection of a part of pcd for effective processing
         colors[selected_indices] = [1, 0, 0]  # Change to red
         cloud_to_operate.colors = o3d.utility.Vector3dVector(colors)
@@ -1240,6 +1357,7 @@ class ScenarioCreatorApp:
         if self.selected_pcd_indices is None:
             print("No ROI selected")
             return
+        # print the points and selected_pcd_indices to check why the centroid is not correct/ NaN
         _centroid = np.asarray(cloud_to_operate.points)[self.selected_pcd_indices].mean(axis=0)
         return _centroid
     
@@ -1821,7 +1939,7 @@ class ScenarioCreatorApp:
         
 
         # GUI Elements
-        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_with_semantic_label.csv"
+        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_without_semantic_label.csv"
         self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_labels_to_extract_src_pcd_text.enabled = False
