@@ -108,7 +108,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_source_scene_pcd_label = gui.Label("Load Source Scene: ")
         self.rgn1_source_scene_pcd_text = gui.TextEdit()
-        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_without_semantic_label.csv"  # we will extract source cloud from the source scene cloud
+        self.rgn1_source_scene_pcd_text.text_value = "semantic_lidar_25__0-Cloud.csv"  # we will extract source cloud from the source scene cloud
 
         self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_label)
@@ -340,7 +340,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_3_grid.preferred_height = 2 * self.em
         self.target_pcd_label = gui.Label("Target PCD Filename: ")
         self.target_pcd_text = gui.TextEdit()
-        self.target_pcd_text.text_value = "only_road_cloud.ply"
+        self.target_pcd_text.text_value = "semantic_lidar_6__0 - Cloud.ply"
 
         self.rgn1_horiz_row_3_grid.add_stretch()
         self.rgn1_horiz_row_3_grid.add_child(self.target_pcd_label)
@@ -1165,7 +1165,8 @@ class ScenarioCreatorApp:
                 print("Please check the checkbox of selecting by labels or geometric features")
                 return
             
-            
+            # # Saving the source cloud
+            # o3d.io.write_point_cloud("analyse_pcd_similarity/source_cloud.ply", self.source_cloud)
             
             if self.widget3d.scene.scene.has_geometry("source_scene_cloud") and self.source_cloud is not None:
                 print("Updating the geometry")
@@ -1290,8 +1291,10 @@ class ScenarioCreatorApp:
         selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
         print(selected_indices)
         self.selected_pcd_indices_with_obj_indices = np.where(selected_indices)[0]
-        if self.source_scene_object_of_interest_indices is not None or len(self.source_scene_object_of_interest_indices) > 0: 
-            selected_indices[self.source_scene_object_of_interest_indices] = False
+        if self.source_scene_cloud is not None:
+            if self.source_scene_object_of_interest_indices is not None or len(self.source_scene_object_of_interest_indices) > 0: 
+                selected_indices[self.source_scene_object_of_interest_indices] = False
+        # selected_indices[self.source_scene_object_of_interest_indices] = False
         print("Selected Indices from ROI ============= : ", selected_indices)
         print("length of true values : ", len(np.where(selected_indices)[0]))
         self.selected_pcd_indices = selected_indices # used later for selection of a part of pcd for effective processing
@@ -1657,8 +1660,10 @@ class ScenarioCreatorApp:
             self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(all_intersected_points)
             self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
 
-            self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
+            # # Saving the raycasted source cloud
+            # o3d.io.write_point_cloud("analyse_pcd_similarity/raycasted_source_cloud_1.ply", self.raycasted_source_cloud)
 
+            self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
         else:
             print("Show Raycasted PCD Button is OFF")
             self.show_raycasted_pcd_btn.text = "ShowRayCastedPCD"
@@ -1939,7 +1944,7 @@ class ScenarioCreatorApp:
         
 
         # GUI Elements
-        self.rgn1_source_scene_pcd_text.text_value = "person_and_road_without_semantic_label.csv"
+        self.rgn1_source_scene_pcd_text.text_value = "semantic_lidar_25__0-Cloud.csv"
         self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_labels_to_extract_src_pcd_text.enabled = False
