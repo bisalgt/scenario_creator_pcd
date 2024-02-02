@@ -108,7 +108,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_1__subrow_1_grid = gui.Horiz(spacing=rgn1_horiz_row_grid_spacing, margins=rgn1_horiz_row_grid_margin)
         self.rgn1_source_scene_pcd_label = gui.Label("Load Source Scene: ")
         self.rgn1_source_scene_pcd_text = gui.TextEdit()
-        self.rgn1_source_scene_pcd_text.text_value = "semantic_lidar_25__0-Cloud.csv"  # we will extract source cloud from the source scene cloud
+        self.rgn1_source_scene_pcd_text.text_value = "jan31_semantic_lidar_source_scene.csv"  # we will extract source cloud from the source scene cloud
 
         self.rgn1_horiz_row_1__subrow_1_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_1_grid.add_child(self.rgn1_source_scene_pcd_label)
@@ -216,7 +216,7 @@ class ScenarioCreatorApp:
 
         self.rgn1_surface_variation_threshold_label = gui.Label("MinThres[0-1]: ")
         self.rgn1_surface_variation_threshold_text = gui.TextEdit()
-        self.rgn1_surface_variation_threshold_text.text_value = "0.00001" # This value was giving better results with nn= 30, for the taken dataset to extract person. Need to remove the ground plane also.
+        self.rgn1_surface_variation_threshold_text.text_value = "0.00000001" # This value was giving better results with nn= 30, for the taken dataset to extract person. Need to remove the ground plane also.
 
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_stretch()
         self.rgn1_horiz_row_1__subrow_3_r2ab_grid.add_child(self.rgn1_surface_variation_chk_box)
@@ -340,7 +340,7 @@ class ScenarioCreatorApp:
         self.rgn1_horiz_row_3_grid.preferred_height = 2 * self.em
         self.target_pcd_label = gui.Label("Target PCD Filename: ")
         self.target_pcd_text = gui.TextEdit()
-        self.target_pcd_text.text_value = "semantic_lidar_6__0 - Cloud.ply"
+        self.target_pcd_text.text_value = "jan31_semantic_lidar_target_scene_without_person.ply"
 
         self.rgn1_horiz_row_3_grid.add_stretch()
         self.rgn1_horiz_row_3_grid.add_child(self.target_pcd_label)
@@ -457,7 +457,7 @@ class ScenarioCreatorApp:
         self.rgn4_horiz_row_1_grid.preferred_height = 2 * self.em
         self.rgn4_radius_label = gui.Label("  R : ")
         self.rgn4_radius_text = gui.TextEdit()
-        self.rgn4_radius_text.text_value = "0.37"
+        self.rgn4_radius_text.text_value = "0.1"
         self.rgn4_nearest_neighbors_label = gui.Label("  NN : ")
         self.rgn4_nearest_neighbors_text = gui.TextEdit()
         self.rgn4_nearest_neighbors_text.text_value = "6"
@@ -1165,8 +1165,8 @@ class ScenarioCreatorApp:
                 print("Please check the checkbox of selecting by labels or geometric features")
                 return
             
-            # # Saving the source cloud
-            # o3d.io.write_point_cloud("analyse_pcd_similarity/source_cloud.ply", self.source_cloud)
+            # Saving the source cloud
+            o3d.io.write_point_cloud("feb02/source_cloud.ply", self.source_cloud)
             
             if self.widget3d.scene.scene.has_geometry("source_scene_cloud") and self.source_cloud is not None:
                 print("Updating the geometry")
@@ -1195,6 +1195,7 @@ class ScenarioCreatorApp:
         print("Finalize Extracted Source PCD Button clicked")
         print("This is irreversible process. If you need to  extract source pcd again, you need to reload the source scene pcd")
         self._on_calculate_centroid_of_reference_roi_btn_clicked() # calculate the centroid of the reference roi when we finalize the transformation of the source_cloud
+        self.reference_of_source_scene_cloud = copy.deepcopy(self.source_scene_cloud)
         self.source_scene_cloud = None
         self.selected_pcd_roi_boundary_indices = []
         self.selected_pcd_indices_with_obj_indices = None
@@ -1255,6 +1256,45 @@ class ScenarioCreatorApp:
     def _on_roi_select_boundary_chk_box_clicked(self, checked):
         print("ROI Select Boundary Chk Box clicked : ", checked)
     
+    
+    def func_to_track_shadowcasting(self, reset_roi_clicked=False):
+        if not hasattr(self, "reference_of_source_scene_cloud"):
+            return
+        
+        print("func_to_track_shadowcasting")
+        
+        ref_points = np.asarray(self.reference_of_source_scene_cloud.points)
+        ref_colors = np.asarray(self.reference_of_source_scene_cloud.colors)
+        
+        ref_object_of_interest = np.where((ref_colors == [0, 0, 0]).all(axis=1))[0]
+        
+        ref_selected_indices = (ref_points[:, 0] >= self.min_xy[0]) & (ref_points[:, 0] <= self.max_xy[0]) & (ref_points[:, 1] >= self.min_xy[1]) & (ref_points[:, 1] <= self.max_xy[1])
+        ref_colors[ref_selected_indices] = [1, 0, 0]
+        ref_colors[ref_object_of_interest] = [0, 0, 0]
+
+        roi_mask = np.where((ref_colors == [1, 0, 0]).all(axis=1))[0]
+
+        roi_points = ref_points[roi_mask]
+        roi_colors = ref_colors[roi_mask]
+
+        roi_cloud = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(roi_points))
+        roi_cloud.colors = o3d.utility.Vector3dVector(roi_colors)
+
+        o3d.io.write_point_cloud("feb02/ground_truth_casted_shadow_on_roi.ply", roi_cloud)
+
+        # Assign the new colors to the point cloud
+        self.reference_of_source_scene_cloud.colors = o3d.utility.Vector3dVector(ref_colors)
+
+        o3d.io.write_point_cloud("feb02/source_scene.ply", self.reference_of_source_scene_cloud)
+        print("Saved new ref source scene with color")
+        # returning color to original color i.e. green
+        ref_colors[ref_selected_indices] = [0, 1, 0]  # Change to green
+        ref_colors[ref_object_of_interest] = [0, 0, 0]
+        self.reference_of_source_scene_cloud.colors = o3d.utility.Vector3dVector(ref_colors)
+        
+        # end of this part
+
+
     # @check_if_pcd_is_loaded
     def _on_roi_select_rect_regn_btn_clicked(self):  # Maybe later it could be dynamic for both clouds
         print("ROI Select Rectangular Region Button clicked")
@@ -1287,6 +1327,9 @@ class ScenarioCreatorApp:
         # Compute the 2D bounding box of the red points in the XY plane
         min_xy = np.min(selected_points[:, :2], axis=0)
         max_xy = np.max(selected_points[:, :2], axis=0)
+        self.min_xy = min_xy
+        self.max_xy = max_xy
+
         # Select all points indices that fall within this bounding box
         selected_indices = (points[:, 0] >= min_xy[0]) & (points[:, 0] <= max_xy[0]) & (points[:, 1] >= min_xy[1]) & (points[:, 1] <= max_xy[1])
         print(selected_indices)
@@ -1479,6 +1522,7 @@ class ScenarioCreatorApp:
             search_param = o3d.geometry.KDTreeSearchParamHybrid(radius=radius, max_nn=nearest_neighbors)
             source_cloud = copy.deepcopy(self.source_cloud)
             source_cloud.estimate_normals(search_param=search_param)
+            source_cloud.orient_normals_towards_camera_location(camera_location=np.array([0., 0., 0.]))
             print('run Poisson surface reconstruction')
             with o3d.utility.VerbosityContextManager(
                     o3d.utility.VerbosityLevel.Debug) as cm:
@@ -1660,8 +1704,8 @@ class ScenarioCreatorApp:
             self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(all_intersected_points)
             self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
 
-            # # Saving the raycasted source cloud
-            # o3d.io.write_point_cloud("analyse_pcd_similarity/raycasted_source_cloud_1.ply", self.raycasted_source_cloud)
+            # Saving the raycasted source cloud
+            o3d.io.write_point_cloud("feb02/raycasted_source_cloud.ply", self.raycasted_source_cloud)
 
             self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
         else:
@@ -1688,7 +1732,7 @@ class ScenarioCreatorApp:
             self.target_cloud_subset_to_shadow_cast = self.target_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices)
             self.target_cloud_subset_not_to_shadow_cast = self.target_cloud.select_by_index(self.selected_pcd_indices_with_obj_indices, invert=True)
 
-
+            self.raycasted_source_cloud.paint_uniform_color([0, 0, 0]) # black
 
             self.final_merged_cloud_subset_to_shadow_cast = self.target_cloud_subset_to_shadow_cast + self.raycasted_source_cloud
             # self._on_roi_reset_btn_clicked()
@@ -1708,13 +1752,8 @@ class ScenarioCreatorApp:
             
             self.final_merged_cloud_subset_after_shadow_cast = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices)
             self.shadowed_cloud = self.final_merged_cloud_subset_to_shadow_cast.select_by_index(self.final_merged_cloud_subset_after_shadow_cast_indices, invert=True)
-            # print(dir(self.final_merged_cloud_subset_after_shadow_cast))
-            # print(type(self.final_merged_cloud_subset_after_shadow_cast))
-            # print(dir(self.target_cloud_subset_not_to_shadow_cast))
-            # print(type(self.target_cloud_subset_not_to_shadow_cast))
+            
 
-            o3d.io.write_point_cloud("test1.ply", self.final_merged_cloud_subset_after_shadow_cast.to_legacy())
-            o3d.io.write_point_cloud("test2.ply", self.target_cloud_subset_not_to_shadow_cast)
 
 
             self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud_subset_after_shadow_cast + o3d.t.geometry.PointCloud.from_legacy(self.target_cloud_subset_not_to_shadow_cast)
@@ -1733,6 +1772,7 @@ class ScenarioCreatorApp:
         
         self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
+        self.func_to_track_shadowcasting()
 
     @check_if_pcd_is_loaded
     def _on_finalize_shadow_casting_btn_clicked(self):
@@ -1740,10 +1780,11 @@ class ScenarioCreatorApp:
         self.show_shadow_casting_btn.is_on = False
         self.show_shadow_casting_btn.text = "Show Shadow"
         final_cloud = self.final_merged_cloud_after_shadow_cast.to_legacy()
-        o3d.io.write_point_cloud("final_cloud_1.ply", final_cloud)
-        original_src_pcd_indices_to_remove = np.where((np.asarray(final_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
-        self.final_cloud = final_cloud.select_by_index(original_src_pcd_indices_to_remove, invert=True)
-        o3d.io.write_point_cloud("final_cloud_2.ply", self.final_cloud)
+        # o3d.io.write_point_cloud("final_cloud_1.ply", final_cloud)
+        # original_src_pcd_indices_to_remove = np.where((np.asarray(final_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
+        # self.final_cloud = final_cloud.select_by_index(original_src_pcd_indices_to_remove, invert=True)
+        # o3d.io.write_point_cloud("final_cloud_2.ply", self.final_cloud)
+        self.final_cloud = final_cloud
 
 
         if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
@@ -1887,7 +1928,23 @@ class ScenarioCreatorApp:
             elif self.rgn8_save_final_merged_pcd_text.text_value[-4:] != ".ply":
                 print("Please enter a valid file name with .ply extension")
                 return
-            o3d.io.write_point_cloud(self.rgn8_save_final_merged_pcd_text.text_value, self.final_cloud)
+            final_cloud_points = np.asarray(self.final_cloud.points)
+            final_colors = np.asarray(self.final_cloud.colors)
+
+            roi_colors = np.where((final_colors == [1, 0, 0]).all(axis=1))[0]
+
+            roi_points = final_cloud_points[roi_colors]
+            roi_colors = final_colors[roi_colors]
+
+            roi_cloud = o3d.geometry.PointCloud()
+            roi_cloud.points = o3d.utility.Vector3dVector(roi_points)
+            roi_cloud.colors = o3d.utility.Vector3dVector(roi_colors)
+
+            o3d.io.write_point_cloud("feb02/"+"predicted_casted_shadow_on_roi.ply", roi_cloud)
+
+            
+
+            o3d.io.write_point_cloud("feb02/"+self.rgn8_save_final_merged_pcd_text.text_value, self.final_cloud)
             print("Final Merged PCD saved successfully")
 
     def _on_rgn8_reset_all_variables_btn_clicked(self):
@@ -1944,7 +2001,7 @@ class ScenarioCreatorApp:
         
 
         # GUI Elements
-        self.rgn1_source_scene_pcd_text.text_value = "semantic_lidar_25__0-Cloud.csv"
+        self.rgn1_source_scene_pcd_text.text_value = "jan31_semantic_lidar_source_scene.csv"
         self.rgn1_use_labels_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_use_geometric_features_to_extract_src_pcd_chk_box.checked = False
         self.rgn1_labels_to_extract_src_pcd_text.enabled = False
@@ -2050,7 +2107,6 @@ class ScenarioCreatorApp:
                             self.selected_pcd_roi_boundary_indices.append(nearest_point_index)
                         cloud_tensor = o3d.t.geometry.PointCloud().from_legacy(cloud_to_operate)
                         if self.widget3d.scene.scene.has_geometry(geometry_name):
-                            # print("Updating the geometry")
                             self.widget3d.scene.scene.remove_geometry(geometry_name)
                         self.widget3d.scene.scene.add_geometry(geometry_name, cloud_tensor, self.mat)
                         self.widget3d.force_redraw()
