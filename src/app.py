@@ -60,6 +60,7 @@ class ScenarioCreatorApp:
         self.roi_color = [1,0,0]
         self.surrounding_color = [0,1,0]
         self.final_cloud = None
+        self.shadow_casted_pcd_using_ray_cast_without_prototype = None
             
 
 
@@ -573,6 +574,20 @@ class ScenarioCreatorApp:
         # region 6 : Shadow Casting
         self.rgn6_shadow_casting_layout = gui.CollapsableVert("Shadow Casting", spacing_betn_items_in_region, margins_for_region)
         self.rgn6_shadow_casting_layout.set_is_open(False)
+
+        # add a button to show shadow casted by raycasted method
+        # show_correct_shadow_casting_btn refers to the shadow casted during raycasting, this method is better than HPR algorithm
+        self.rgn6_horiz_row_0_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
+        self.rgn6_horiz_row_0_grid.preferred_height = 2 * self.em
+
+        self.show_correct_shadow_casting_btn = gui.Button(f"ShowShadowCastedByRaycasting")
+        self.show_correct_shadow_casting_btn.toggleable = True
+        self.show_correct_shadow_casting_btn.set_on_clicked(self._on_show_correct_shadow_casting_btn_clicked)
+
+        self.rgn6_horiz_row_0_grid.add_stretch()
+        self.rgn6_horiz_row_0_grid.add_child(self.show_correct_shadow_casting_btn)
+        self.rgn6_horiz_row_0_grid.add_stretch()
+
         self.rgn6_horiz_row_1_grid = gui.Horiz(spacing=0.05*self.em, margins=gui.Margins(0.3*self.em, 0.3*self.em, 0.3*self.em, 0.3*self.em))
         self.rgn6_horiz_row_1_grid.preferred_height = 2 * self.em
         self.rgn6_radius_label = gui.Label("  Radius : ")
@@ -602,6 +617,7 @@ class ScenarioCreatorApp:
         self.rgn6_horiz_row_2_grid.add_stretch()
 
 
+        self.rgn6_shadow_casting_layout.add_child(self.rgn6_horiz_row_0_grid)
         self.rgn6_shadow_casting_layout.add_child(self.rgn6_horiz_row_1_grid)
         self.rgn6_shadow_casting_layout.add_child(self.rgn6_horiz_row_2_grid)
 
@@ -674,8 +690,10 @@ class ScenarioCreatorApp:
         # self.rgn7_horiz_row_4_grid.preferred_height = 2 * self.em
         self.rgn7_show_raycasted_source_pcd_chk_box = gui.Checkbox(f"RayCasted Point Cloud")
         self.rgn7_show_raycasted_source_pcd_chk_box.set_on_checked(self._on_rgn7_show_raycasted_source_pcd_chk_box_clicked)
-        self.rgn7_show_casted_shadow_chk_box = gui.Checkbox(f"Final Shadow Casted Result")
+        self.rgn7_show_casted_shadow_chk_box = gui.Checkbox(f"Shadow Casted by HPR")
         self.rgn7_show_casted_shadow_chk_box.set_on_checked(self._on_rgn7_show_casted_shadow_chk_box_clicked)
+        self.rgn7_show_correct_casted_shadow_chk_box = gui.Checkbox(f"Shadow Casted by RayCasting")
+        self.rgn7_show_correct_casted_shadow_chk_box.set_on_checked(self._on_rgn7_show_correct_casted_shadow_chk_box_clicked)
 
         # self.rgn7_horiz_row_4_grid.add_stretch()
         # self.rgn7_horiz_row_4_grid.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
@@ -687,6 +705,7 @@ class ScenarioCreatorApp:
         self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_directed_rays_chk_box)
         self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_raycasted_source_pcd_chk_box)
         self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_casted_shadow_chk_box)
+        self.rgn7_vert_grid_col_1.add_child(self.rgn7_show_correct_casted_shadow_chk_box)
 
 
         # self.rgn7_show_hide_layout.add_child(self.rgn7_horiz_row_1_grid)
@@ -825,12 +844,21 @@ class ScenarioCreatorApp:
         else:
             self.rgn7_show_raycasted_source_pcd_chk_box.checked = False
         if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
+            print("final_merged_cloud_after_shadow_cast exists")
             if self.widget3d.scene.scene.geometry_is_visible("final_merged_cloud_after_shadow_cast"):
                 self.rgn7_show_casted_shadow_chk_box.checked = True
             else:
                 self.rgn7_show_casted_shadow_chk_box.checked = False
         else:
             self.rgn7_show_casted_shadow_chk_box.checked = False
+        if self.widget3d.scene.scene.has_geometry("shadow_cast_using_raycast_method"):
+            print("shadow_cast_using_raycast_method exists")
+            if self.widget3d.scene.scene.geometry_is_visible("shadow_cast_using_raycast_method"):
+                self.rgn7_show_correct_casted_shadow_chk_box.checked = True
+            else:
+                self.rgn7_show_correct_casted_shadow_chk_box.checked = False
+        else:
+            self.rgn7_show_correct_casted_shadow_chk_box.checked = False
 
 
             
@@ -1258,6 +1286,7 @@ class ScenarioCreatorApp:
     
     
     def func_to_track_shadowcasting(self, reset_roi_clicked=False):
+        #"used in the evaluation process by selecting the equivalent region of interest in the source scene cloud and shadowcasted target region"
         if not hasattr(self, "reference_of_source_scene_cloud"):
             return
         
@@ -1688,6 +1717,45 @@ class ScenarioCreatorApp:
             # Casting rays on the scene
             ans = scene.cast_rays(rays)
 
+            # ===================================================================================================
+            # for the calculation of shadow casting
+            t_hits_all = ans["t_hit"].numpy()
+            not_hits_indices = np.where(t_hits_all == np.inf)[0]
+            # rays_not_hitting_the_surface = rays_array[not_hits_indices]
+            points_not_hitting_the_surface = randomly_selected_raycasted_rays[not_hits_indices]
+            pcd_in_roi_where_rays_not_intersect_with_surface = o3d.geometry.PointCloud()
+            pcd_in_roi_where_rays_not_intersect_with_surface.points = o3d.utility.Vector3dVector(points_not_hitting_the_surface)
+
+            roi_int_indices = np.where(self.selected_pcd_indices)[0]
+            pcd_of_target_cloud_without_roi = self.target_cloud.select_by_index(roi_int_indices, invert=True)
+            
+            
+            # pcd_target_ohne_roi = o3d.geometry.PointCloud()
+            # mask = np.isin(np.asarray(self.target_cloud.points), self.selected_pcd_indices, invert=True)
+            # pcd_target_ohne_roi.points = o3d.utility.Vector3dVector(np.asarray(self.target_cloud.points)[mask])
+            self.shadow_casted_pcd_using_ray_cast_without_prototype = pcd_in_roi_where_rays_not_intersect_with_surface + pcd_of_target_cloud_without_roi
+            self.shadow_casted_pcd_using_ray_cast_without_prototype.paint_uniform_color([0, 1, 0]) # green
+
+            self.widget3d.scene.scene.add_geometry("shadow_cast_using_raycast_method", self.shadow_casted_pcd_using_ray_cast_without_prototype, self.mat)
+            self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=False)
+            
+            # ===================================================================================================
+
+            # self.widget3d.scene.scene.add_geometry("shadow_casted_by_raycasting_process", shadow_casted_pcd, self.mat)
+            print("length of target cloud : ", len(self.target_cloud.points))
+            print("len of pcd indices : ", len(self.selected_pcd_indices))
+            print("selected pcd indices : ", self.selected_pcd_indices)
+            print("len of pcd of target cloud without roi : ", len(pcd_of_target_cloud_without_roi.points))
+
+            o3d.io.write_point_cloud("feb02/shadow_casted_by_raycasting_process_without_prototype.ply", self.shadow_casted_pcd_using_ray_cast_without_prototype)
+            o3d.io.write_point_cloud("feb02/remaining_region_after_roi.ply", pcd_of_target_cloud_without_roi)
+            o3d.io.write_point_cloud("feb02/pcd_in_roi_where_rays_not_intersect_with_surface.ply", pcd_in_roi_where_rays_not_intersect_with_surface)
+            # o3d.io.write_point_cloud("feb02/pcd_target_ohne_roi.ply", pcd_target_ohne_roi)
+
+            # End of new way for shadow casting
+
+
+            # for the calculation of raycasted point
             triangle_ids = [i.numpy() for i in ans["primitive_ids"] if i != scene.INVALID_ID] # list of all the triangles through which rays intersected
             triangle_indices = [i.numpy() for i in mesh_new.triangle.indices] # list of all the triangles in the mesh
             vertex_list = [i.numpy() for i in mesh_new.vertex.positions]
@@ -1716,6 +1784,38 @@ class ScenarioCreatorApp:
             print("Done removing raycasted source cloud")
         self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
+
+    @check_if_pcd_is_loaded
+    def _on_show_correct_shadow_casting_btn_clicked(self):
+        print("Show Shadow Casting by Raycast Button clicked")
+        if self.shadow_casted_pcd_using_ray_cast_without_prototype is None:
+            self.show_correct_shadow_casting_btn.is_on = False
+            self.show_correct_shadow_casting_btn.text = "Show ShadowCasted by Raycast"
+            print("No shadow_casted_pcd_using_ray_cast_without_prototype")
+            return
+        if self.show_correct_shadow_casting_btn.is_on:
+            self.show_correct_shadow_casting_btn.text = "Remove Casted Shadow from Raycast"
+            print("Show Shadow Casting New Button is ON")
+            self.final_merged_cloud_after_shadow_cast = self.shadow_casted_pcd_using_ray_cast_without_prototype + self.raycasted_source_cloud
+            self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
+            # self.widget3d.scene.scene.add_geometry("shadow_cast_using_raycast_method", self.shadow_casted_pcd_using_ray_cast_without_prototype, self.mat)
+            self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=True)
+            self.update_show_hide_checkboxes()
+
+        else:
+            self.show_correct_shadow_casting_btn.text = "Show ShadowCasted by Raycast"
+            print("Show Shadow Casting new Button is OFF")
+            self.widget3d.scene.scene.show_geometry("target_cloud", show=True)
+            self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=False)
+            self.final_merged_cloud_after_shadow_cast = None
+            # self.shadowed_cloud = None
+            # self.final_merged_cloud_without_shadow_indices = None
+            print("Done removing casted shadow")
+        
+        self.widget3d.force_redraw()
+        self.update_show_hide_checkboxes()
+        # self.func_to_track_shadowcasting()
+            
 
     @check_if_pcd_is_loaded
     def _on_show_shadow_casting_btn_clicked(self):
@@ -1759,6 +1859,7 @@ class ScenarioCreatorApp:
             self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud_subset_after_shadow_cast + o3d.t.geometry.PointCloud.from_legacy(self.target_cloud_subset_not_to_shadow_cast)
             self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
             self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_merged_cloud_after_shadow_cast, self.mat)
+            self.final_merged_cloud_after_shadow_cast = self.final_merged_cloud_after_shadow_cast.to_legacy()
             self.update_show_hide_checkboxes()
         else:
             self.show_shadow_casting_btn.text = "Show Shadow"
@@ -1779,21 +1880,34 @@ class ScenarioCreatorApp:
         print("Finalize Shadow Casting Button clicked")
         self.show_shadow_casting_btn.is_on = False
         self.show_shadow_casting_btn.text = "Show Shadow"
-        final_cloud = self.final_merged_cloud_after_shadow_cast.to_legacy()
+        self.show_correct_shadow_casting_btn.is_on = False
+        self.show_correct_shadow_casting_btn.text = "Show ShadowCasted by Raycast"
+
+        final_cloud = self.final_merged_cloud_after_shadow_cast
         # o3d.io.write_point_cloud("final_cloud_1.ply", final_cloud)
         # original_src_pcd_indices_to_remove = np.where((np.asarray(final_cloud.colors) == self.object_of_interest_color).all(axis=1))[0]
         # self.final_cloud = final_cloud.select_by_index(original_src_pcd_indices_to_remove, invert=True)
         # o3d.io.write_point_cloud("final_cloud_2.ply", self.final_cloud)
         self.final_cloud = final_cloud
 
+        shadow_cast_by_hpr = False
 
         if self.widget3d.scene.scene.has_geometry("final_merged_cloud_after_shadow_cast"):
             self.widget3d.scene.scene.remove_geometry("final_merged_cloud_after_shadow_cast")
-        self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_cloud, self.mat)
+            self.widget3d.scene.scene.add_geometry("final_merged_cloud_after_shadow_cast", self.final_cloud, self.mat)
+            shadow_cast_by_hpr = True
+
+        if self.widget3d.scene.scene.has_geometry("shadow_cast_using_raycast_method"):
+            self.widget3d.scene.scene.remove_geometry("shadow_cast_using_raycast_method")
+            self.widget3d.scene.scene.add_geometry("shadow_cast_using_raycast_method", self.shadow_casted_pcd_using_ray_cast_without_prototype, self.mat)
+            shadow_cast_by_hpr = False
 
         self.widget3d.scene.scene.show_geometry("target_cloud", show=False)
         self.widget3d.scene.scene.show_geometry("source_cloud", show=False)
-        self.widget3d.scene.scene.show_geometry("final_merged_cloud_after_shadow_cast", show=True)
+        if shadow_cast_by_hpr:
+            self.widget3d.scene.scene.show_geometry("final_merged_cloud_after_shadow_cast", show=True)
+        else:
+            self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=True)
         self.widget3d.scene.scene.show_geometry("raycasted_source_cloud", show=False)
         self.widget3d.scene.scene.show_geometry("directed_rays", show=False)
         self.widget3d.scene.scene.show_geometry("reconstructed_source_mesh_filtered_densities_mesh", show=False)
@@ -1915,6 +2029,19 @@ class ScenarioCreatorApp:
             else:
                 print("ShadowCasted PointCloud is not available to remove")
     
+    def _on_rgn7_show_correct_casted_shadow_chk_box_clicked(self, checked):
+        print("Show Correct ShadowCasted PointCloud Chk Box clicked : ", checked)
+        if checked:
+            if self.widget3d.scene.scene.geometry_is_visible("shadow_cast_using_raycast_method"):
+                print("Correct ShadowCasted PointCloud is already added")
+            else:
+                self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=True)
+        else:
+            if self.widget3d.scene.scene.geometry_is_visible("shadow_cast_using_raycast_method"):
+                self.widget3d.scene.scene.show_geometry("shadow_cast_using_raycast_method", show=False)
+            else:
+                print("Correct ShadowCasted PointCloud is not available to remove")
+
     def _on_rgn8_save_final_merged_pcd_btn_clicked(self):
         print("Save Final Merged PCD Button clicked")
         # o3d.io.write_point_cloud("source_scene_with_colors_test.ply", self.source_scene_cloud)
