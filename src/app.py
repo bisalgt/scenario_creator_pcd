@@ -1718,6 +1718,7 @@ class ScenarioCreatorApp:
             ans = scene.cast_rays(rays)
 
             # ===================================================================================================
+            # ===================================================================================================
             # for the calculation of shadow casting
             t_hits_all = ans["t_hit"].numpy()
             not_hits_indices = np.where(t_hits_all == np.inf)[0]
@@ -1753,23 +1754,96 @@ class ScenarioCreatorApp:
             # o3d.io.write_point_cloud("feb02/pcd_target_ohne_roi.ply", pcd_target_ohne_roi)
 
             # End of new way for shadow casting
+            # ===================================================================================================
+            # ===================================================================================================
 
 
+            # ===================================================================================================
+            # Use of Barycentric Coordinates to find the raycasted point cloud
+            # ===================================================================================================
+
+            # mesh_new is the collection of triangle mesh
+            # index_of_intersected_triangles = np.where(ans["primitive_ids"].numpy() != scene.INVALID_ID)[0]
+            # intersected_triangles = ans["primitive_ids"].numpy()[index_of_intersected_triangles]
+            # vertex_indx_of_intersected_triangles = mesh_new.triangle.indices.numpy()[intersected_triangles]
+            # vertices_of_intersected_triangles = mesh_new.vertex.positions.numpy()[vertex_indx_of_intersected_triangles]
+            # barycentric_coordinates_of_intersected_triangles = ans["primitive_uvs"].numpy()[index_of_intersected_triangles]
+            # barycentric_coordinates_of_intersected_triangles = np.concatenate([barycentric_coordinates_of_intersected_triangles, 1- barycentric_coordinates_of_intersected_triangles.sum(axis=1, keepdims=True)], axis=1)
+            
+            # raycaste_points_from_barycentric_coordinates = np.einsum('ijk,ij->ik',vertices_of_intersected_triangles, barycentric_coordinates_of_intersected_triangles)
+
+            # A = vertices_of_intersected_triangles
+            # B = barycentric_coordinates_of_intersected_triangles
+            # P = np.zeros((len(intersected_triangles), 3))
+            # for i in range(len(intersected_triangles)):
+            #     for j in range(3):
+            #         print(B[i, j], A[i, j])
+            #         P[i] += B[i, j] * A[i, j]
+
+
+            # o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_barycentric_coordinates.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycaste_points_from_barycentric_coordinates)))
+            # o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_barycentric_coordinates_matrix_mul.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(P)))
+
+
+            # ===================================================================================================
+            # ===================================================================================================
+
+
+
+            # ===================================================================================================
+            # Use of distance between the point to find the actual hit point
+            # ===================================================================================================
+
+            index_of_intersected_triangles = np.where(ans["primitive_ids"].numpy() != scene.INVALID_ID)[0]
+            intersected_rays = rays_array[index_of_intersected_triangles]
+            t_hit = ans["t_hit"].numpy()[index_of_intersected_triangles]
+
+            df = pd.DataFrame(intersected_rays, columns=["x0", "y0", "z0", "x1", "y1", "z1" ])
+            distance = ((df["x0"] - df["x1"])**2 + (df["y0"] - df["y1"])**2 + (df["z0"] - df["z1"])**2)**(1/2)
+            df["distance"] = distance
+            df["t_hit"] = t_hit
+            df["x"] = df["x0"] + df["t_hit"] * (df["x1"] - df["x0"])
+            df["y"] = df["y0"] + df["t_hit"] * (df["y1"] - df["y0"])
+            df["z"] = df["z0"] + df["t_hit"] * (df["z1"] - df["z0"])
+            raycasted_point_cloud_using_t_hit = df[["x", "y", "z"]].values
+            o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_t_hit.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycasted_point_cloud_using_t_hit)))
+
+
+
+            # Using t_hit distance to find the raycasted point works perfectly!
+
+
+
+
+
+
+
+            # ===================================================================================================
+            # ===================================================================================================
+
+            # ===================================================================================================
+            # Use of Centroid method to find the coordinates of the intersected points
+            # ===================================================================================================
             # for the calculation of raycasted point
-            triangle_ids = [i.numpy() for i in ans["primitive_ids"] if i != scene.INVALID_ID] # list of all the triangles through which rays intersected
-            triangle_indices = [i.numpy() for i in mesh_new.triangle.indices] # list of all the triangles in the mesh
-            vertex_list = [i.numpy() for i in mesh_new.vertex.positions]
-            all_intersected_points = np.zeros((len(triangle_ids), 3)) # Creating an empty array
-            for indx, triangle_id in enumerate(triangle_ids): # List of Triangles through which rays intersected
-                triangle_vertex = triangle_indices[triangle_id] # Gives the list of vertex
-                vertex0 = vertex_list[triangle_vertex[0]] # Gives the corresponding vertex value in x,y,z
-                vertex1 = vertex_list[triangle_vertex[1]] # Gives the corresponding vertex value in x,y,z
-                vertex2 = vertex_list[triangle_vertex[2]] # Gives the corresponding vertex value in x,y,z
-                all_intersected_points[indx] = [(vertex0[i] + vertex1[i] + vertex2[i])/3 for i in range(3)] # Computing the centroid for now
-            print(all_intersected_points.shape)
+            # triangle_ids = [i.numpy() for i in ans["primitive_ids"] if i != scene.INVALID_ID] # list of all the triangles through which rays intersected
+            # triangle_indices = [i.numpy() for i in mesh_new.triangle.indices] # list of all the triangles in the mesh
+            # vertex_list = [i.numpy() for i in mesh_new.vertex.positions]
+            # all_intersected_points = np.zeros((len(triangle_ids), 3)) # Creating an empty array
+            # for indx, triangle_id in enumerate(triangle_ids): # List of Triangles through which rays intersected
+            #     triangle_vertex = triangle_indices[triangle_id] # Gives the list of vertex
+            #     vertex0 = vertex_list[triangle_vertex[0]] # Gives the corresponding vertex value in x,y,z
+            #     vertex1 = vertex_list[triangle_vertex[1]] # Gives the corresponding vertex value in x,y,z
+            #     vertex2 = vertex_list[triangle_vertex[2]] # Gives the corresponding vertex value in x,y,z
+            #     all_intersected_points[indx] = [(vertex0[i] + vertex1[i] + vertex2[i])/3 for i in range(3)] # Computing the centroid for now
+            # print(all_intersected_points.shape)
+
+            # ===================================================================================================
+            # ===================================================================================================
+
+
 
             self.raycasted_source_cloud = o3d.geometry.PointCloud()
-            self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(all_intersected_points)
+            self.raycasted_source_cloud.points = o3d.utility.Vector3dVector(raycasted_point_cloud_using_t_hit)
             self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
 
             # Saving the raycasted source cloud
