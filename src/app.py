@@ -1638,9 +1638,44 @@ class ScenarioCreatorApp:
             print("Filter Density Button clicked ON")
             self.filter_density_btn.text = "RemoveFilteredDensity"
             self.reconstructed_source_mesh_filtered_densities_mesh = copy.deepcopy(self.reconstructed_source_mesh)
-            vertices_to_remove = self.reconstructed_source_mesh_densities_array < np.quantile(self.reconstructed_source_mesh_densities_array, self.filter_density_slider.double_value)
-            self.reconstructed_source_mesh_filtered_densities_mesh.remove_vertices_by_mask(vertices_to_remove)
-            self.reconstructed_source_mesh_filtered_densities_mesh.compute_vertex_normals()
+            # vertices_to_remove = self.reconstructed_source_mesh_densities_array < np.quantile(self.reconstructed_source_mesh_densities_array, self.filter_density_slider.double_value)
+            # self.reconstructed_source_mesh_filtered_densities_mesh.remove_vertices_by_mask(vertices_to_remove)
+            # self.reconstructed_source_mesh_filtered_densities_mesh.compute_vertex_normals()
+            
+            # ===================================================================================================
+            # Filtering the mesh based on the vertex values and removing traingles from triangle mesh whose all vertices do not contain original point of point cloud
+            # ===================================================================================================
+            
+            original_points = np.asarray(self.source_cloud.points)
+
+            # Get vertices and triangles
+            vertices = np.asarray(self.reconstructed_source_mesh_filtered_densities_mesh.vertices)
+            triangles = np.asarray(self.reconstructed_source_mesh_filtered_densities_mesh.triangles)
+
+            # Mark triangles for removal
+            count_list = []
+            triangles_to_remove = []
+            for i, triangle in enumerate(triangles):
+                vertices_in_triangle = set(triangle)
+                count = 0
+                for vertex in vertices_in_triangle:
+                    if any(np.isclose(vertices[vertex], original_points, atol=1e-1).all(axis=1)):
+                        count += 1
+                count_list.append(count)
+                if count < 3:
+                    triangles_to_remove.append(i)
+
+            # Remove triangles that don't contain at least two original point cloud points
+            self.reconstructed_source_mesh_filtered_densities_mesh.remove_triangles_by_index(triangles_to_remove)
+            self.reconstructed_source_mesh_filtered_densities_mesh.remove_unreferenced_vertices()
+
+
+
+
+            # ===================================================================================================
+            # ===================================================================================================
+
+
             # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
             self.reconstructed_source_mesh_filtered_densities_mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
             self.widget3d.scene.scene.add_geometry("reconstructed_source_mesh_filtered_densities_mesh", self.reconstructed_source_mesh_filtered_densities_mesh, self.mat)
