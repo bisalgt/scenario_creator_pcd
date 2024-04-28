@@ -1194,7 +1194,7 @@ class ScenarioCreatorApp:
                 return
             
             # Saving the source cloud
-            o3d.io.write_point_cloud("feb02/source_cloud.ply", self.source_cloud)
+            o3d.io.write_point_cloud("feb18/source_cloud.ply", self.source_cloud)
             
             if self.widget3d.scene.scene.has_geometry("source_scene_cloud") and self.source_cloud is not None:
                 print("Updating the geometry")
@@ -1309,12 +1309,12 @@ class ScenarioCreatorApp:
         roi_cloud = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(roi_points))
         roi_cloud.colors = o3d.utility.Vector3dVector(roi_colors)
 
-        o3d.io.write_point_cloud("feb02/ground_truth_casted_shadow_on_roi.ply", roi_cloud)
+        o3d.io.write_point_cloud("feb18/ground_truth_casted_shadow_on_roi.ply", roi_cloud)
 
         # Assign the new colors to the point cloud
         self.reference_of_source_scene_cloud.colors = o3d.utility.Vector3dVector(ref_colors)
 
-        o3d.io.write_point_cloud("feb02/source_scene.ply", self.reference_of_source_scene_cloud)
+        o3d.io.write_point_cloud("feb18/source_scene.ply", self.reference_of_source_scene_cloud)
         print("Saved new ref source scene with color")
         # returning color to original color i.e. green
         ref_colors[ref_selected_indices] = [0, 1, 0]  # Change to green
@@ -1678,6 +1678,10 @@ class ScenarioCreatorApp:
 
             # Paint it gray. Not necessary but the reflection of lighting is hardly perceivable with black surfaces.
             self.reconstructed_source_mesh_filtered_densities_mesh.paint_uniform_color(np.array([[0],[0],[1]])) # blue
+
+            # saving the mesh for use in ros2 listener node
+            o3d.io.write_triangle_mesh("feb18/person_mesh.ply", self.reconstructed_source_mesh_filtered_densities_mesh)
+
             self.widget3d.scene.scene.add_geometry("reconstructed_source_mesh_filtered_densities_mesh", self.reconstructed_source_mesh_filtered_densities_mesh, self.mat)
             self.widget3d.force_redraw()
             print("Done filtering density")
@@ -1787,10 +1791,10 @@ class ScenarioCreatorApp:
             print("selected pcd indices : ", self.selected_pcd_indices)
             print("len of pcd of target cloud without roi : ", len(pcd_of_target_cloud_without_roi.points))
 
-            o3d.io.write_point_cloud("feb02/shadow_casted_by_raycasting_process_without_prototype.ply", self.shadow_casted_pcd_using_ray_cast_without_prototype)
-            o3d.io.write_point_cloud("feb02/remaining_region_after_roi.ply", pcd_of_target_cloud_without_roi)
-            o3d.io.write_point_cloud("feb02/pcd_in_roi_where_rays_not_intersect_with_surface.ply", pcd_in_roi_where_rays_not_intersect_with_surface)
-            # o3d.io.write_point_cloud("feb02/pcd_target_ohne_roi.ply", pcd_target_ohne_roi)
+            o3d.io.write_point_cloud("feb18/shadow_casted_by_raycasting_process_without_prototype.ply", self.shadow_casted_pcd_using_ray_cast_without_prototype)
+            o3d.io.write_point_cloud("feb18/remaining_region_after_roi.ply", pcd_of_target_cloud_without_roi)
+            o3d.io.write_point_cloud("feb18/pcd_in_roi_where_rays_not_intersect_with_surface.ply", pcd_in_roi_where_rays_not_intersect_with_surface)
+            # o3d.io.write_point_cloud("feb18/pcd_target_ohne_roi.ply", pcd_target_ohne_roi)
 
             # End of new way for shadow casting
             # ===================================================================================================
@@ -1820,8 +1824,8 @@ class ScenarioCreatorApp:
             #         P[i] += B[i, j] * A[i, j]
 
 
-            # o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_barycentric_coordinates.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycaste_points_from_barycentric_coordinates)))
-            # o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_barycentric_coordinates_matrix_mul.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(P)))
+            # o3d.io.write_point_cloud("feb18/raycasted_point_cloud_using_barycentric_coordinates.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycaste_points_from_barycentric_coordinates)))
+            # o3d.io.write_point_cloud("feb18/raycasted_point_cloud_using_barycentric_coordinates_matrix_mul.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(P)))
 
 
             # ===================================================================================================
@@ -1845,7 +1849,7 @@ class ScenarioCreatorApp:
             df["y"] = df["y0"] + df["t_hit"] * (df["y1"] - df["y0"])
             df["z"] = df["z0"] + df["t_hit"] * (df["z1"] - df["z0"])
             raycasted_point_cloud_using_t_hit = df[["x", "y", "z"]].values
-            o3d.io.write_point_cloud("feb02/raycasted_point_cloud_using_t_hit.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycasted_point_cloud_using_t_hit)))
+            o3d.io.write_point_cloud("feb18/raycasted_point_cloud_using_t_hit.ply", o3d.geometry.PointCloud(o3d.utility.Vector3dVector(raycasted_point_cloud_using_t_hit)))
 
 
 
@@ -1886,7 +1890,7 @@ class ScenarioCreatorApp:
             self.raycasted_source_cloud.paint_uniform_color(np.array([[1],[0],[0]])) # red
 
             # Saving the raycasted source cloud
-            o3d.io.write_point_cloud("feb02/raycasted_source_cloud.ply", self.raycasted_source_cloud)
+            o3d.io.write_point_cloud("feb18/raycasted_source_cloud.ply", self.raycasted_source_cloud)
 
             self.widget3d.scene.scene.add_geometry("raycasted_source_cloud", self.raycasted_source_cloud, self.mat)
         else:
@@ -1926,7 +1930,7 @@ class ScenarioCreatorApp:
         
         self.widget3d.force_redraw()
         self.update_show_hide_checkboxes()
-        # self.func_to_track_shadowcasting()
+        self.func_to_track_shadowcasting()
             
 
     @check_if_pcd_is_loaded
@@ -2180,11 +2184,11 @@ class ScenarioCreatorApp:
             roi_cloud.points = o3d.utility.Vector3dVector(roi_points)
             roi_cloud.colors = o3d.utility.Vector3dVector(roi_colors)
 
-            o3d.io.write_point_cloud("feb02/"+"predicted_casted_shadow_on_roi.ply", roi_cloud)
+            o3d.io.write_point_cloud("feb18/"+"predicted_casted_shadow_on_roi.ply", roi_cloud)
 
             
 
-            o3d.io.write_point_cloud("feb02/"+self.rgn8_save_final_merged_pcd_text.text_value, self.final_merged_cloud_after_shadow_cast)
+            o3d.io.write_point_cloud("feb18/"+self.rgn8_save_final_merged_pcd_text.text_value, self.final_merged_cloud_after_shadow_cast)
             print("Final Merged PCD saved successfully")
 
     def _on_rgn8_reset_all_variables_btn_clicked(self):
