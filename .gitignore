@@ -4,3 +4,4 @@ env/
 **.ply
 **.__pycache__
 **.csv
+**/.DS_Store/
