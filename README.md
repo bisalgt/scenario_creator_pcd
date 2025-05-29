@@ -18,4 +18,5 @@ Output :
 
 ![Point Cloud Recombination Output Image](./output/Recombining%20PCD%203.png)
 
+![Point Cloud Recombination Output Image](./output/RecombiningPCD.gif)
 
