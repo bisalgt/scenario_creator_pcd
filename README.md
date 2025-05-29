@@ -10,6 +10,9 @@
 
 Output :
 
+![Point Cloud Recombination Output Image](./output/RecombiningPCD.gif)
+
+
 ![Point Cloud Recombination Output Image](./output/Combining%20PointClouds.png)
 
 
@@ -18,5 +21,6 @@ Output :
 
 ![Point Cloud Recombination Output Image](./output/Recombining%20PCD%203.png)
 
-![Point Cloud Recombination Output Image](./output/RecombiningPCD.gif)
+
+Paper At : https://github.com/bisalgt/Masters_Thesis_LidarDataAug
 
